@@ -722,3 +722,25 @@ function animate(){
 
   if (state.isPlaying && state.duration>0){
     state.currentTime += dt*state.speed;
+    if (state.currentTime >= state.duration){
+      if (state.loop){
+        state.currentTime = state.currentTime % state.duration;
+      } else {
+        state.currentTime = state.duration;
+        state.isPlaying = false;
+        updatePlayButton();
+      }
+    }
+    updateScrubUI();
+  }
+
+  updateRig(state.currentTime);
+  updateLiveReadout(state.currentTime);
+  renderer.render(scene, camera);
+}
+animate();
+
+})();
+</script>
+</body>
+</html>
