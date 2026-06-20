@@ -148,29 +148,42 @@
 "use strict";
 
 /* ---------------------------------------------------------------------
-   1) RIG DEFINITION — chuẩn khớp R6 (Neck / Shoulders / Hips)
-   C0 = offset trên Torso, C1 = offset trên part con (đã đảo dấu sẵn = c1inv)
+   1) RIG DEFINITION — Chuẩn khớp R6 và Ma trận xoay mặc định của Motor6D
 --------------------------------------------------------------------- */
-function T(x,y,z){ return new THREE.Matrix4().makeTranslation(x,y,z); }
+function CF(x, y, z, rx = 0, ry = 0, rz = 0) {
+  const m = new THREE.Matrix4().makeTranslation(x, y, z);
+  const euler = new THREE.Euler(rx, ry, rz, 'XYZ'); // Khớp hoàn toàn thứ tự CFrame.Angles của Roblox
+  const rot = new THREE.Matrix4().makeRotationFromEuler(euler);
+  return m.multiply(rot);
+}
 
-const REST_TORSO = T(0,3,0); // Torso đứng cách sàn 3 stud (hông cao 2, nửa thân 1)
+const REST_TORSO = CF(0, 3, 0); 
 
 const RIG_DEFS = [
   { name:'Head',       parent:'Torso', size:[2,1,1], color:0xf4c752,
-    c0:T(0,1,0),     c1inv:T(0,0.5,0) },
+    c0: CF(0, 1, 0, -Math.PI/2, 0, Math.PI), 
+    c1inv: CF(0, -0.5, 0, -Math.PI/2, 0, Math.PI).invert() },
+    
   { name:'Right Arm',  parent:'Torso', size:[1,2,1], color:0xf4c752,
-    c0:T(1,0.5,0),   c1inv:T(0.5,-0.5,0) },
+    c0: CF(1, 0.5, 0, 0, Math.PI/2, 0), 
+    c1inv: CF(-0.5, 0.5, 0, 0, Math.PI/2, 0).invert() },
+    
   { name:'Left Arm',   parent:'Torso', size:[1,2,1], color:0xf4c752,
-    c0:T(-1,0.5,0),  c1inv:T(-0.5,-0.5,0) },
+    c0: CF(-1, 0.5, 0, 0, -Math.PI/2, 0), 
+    c1inv: CF(0.5, 0.5, 0, 0, -Math.PI/2, 0).invert() },
+    
   { name:'Right Leg',  parent:'Torso', size:[1,2,1], color:0x4c8c44,
-    c0:T(0.5,-1,0),  c1inv:T(0,-1,0) },
+    c0: CF(1, -1, 0, 0, Math.PI/2, 0), 
+    c1inv: CF(0.5, 1, 0, 0, Math.PI/2, 0).invert() },
+    
   { name:'Left Leg',   parent:'Torso', size:[1,2,1], color:0x4c8c44,
-    c0:T(-0.5,-1,0), c1inv:T(0,-1,0) },
+    c0: CF(-1, -1, 0, 0, -Math.PI/2, 0), 
+    c1inv: CF(-0.5, 1, 0, 0, -Math.PI/2, 0).invert() },
 ];
 const KNOWN_PART_NAMES = ['Torso','Head','Right Arm','Left Arm','Right Leg','Left Leg'];
 
 /* ---------------------------------------------------------------------
-   2) PARSER — đọc định dạng: 0.123s : TenPart = CFrame.new(x,y,z) * CFrame.Angles(rx,ry,rz)
+   2) PARSER — Đọc dữ liệu từ dòng lệnh xuất ra từ KeyframeSequence
 --------------------------------------------------------------------- */
 const LINE_RE = /^([\d.eE+\-]+)s\s*:\s*([^=]+?)\s*=\s*CFrame\.new\(([^)]*)\)\s*\*\s*CFrame\.Angles\(([^)]*)\)/;
 
@@ -190,11 +203,9 @@ function parseKeyframeSequence(text){
     const ang = m[4].split(',').map(s=>parseFloat(s.trim()));
     if (isNaN(t) || pos.length<3 || ang.length<3 || pos.some(isNaN) || ang.some(isNaN)) continue;
 
-    const mx = new THREE.Matrix4().makeRotationX(ang[0]);
-    const my = new THREE.Matrix4().makeRotationY(ang[1]);
-    const mz = new THREE.Matrix4().makeRotationZ(ang[2]);
-    const rot = mx.multiply(my).multiply(mz); // Rx * Ry * Rz, giống CFrame.Angles của Roblox
-    const quat = new THREE.Quaternion().setFromRotationMatrix(rot);
+    // Sử dụng Euler góc 'XYZ' giúp ánh xạ chính xác hành vi quay của Roblox sang Three.js
+    const euler = new THREE.Euler(ang[0], ang[1], ang[2], 'XYZ');
+    const quat = new THREE.Quaternion().setFromEuler(euler);
     const vpos = new THREE.Vector3(pos[0], pos[1], pos[2]);
 
     if (!byPart[name]) byPart[name] = [];
@@ -256,7 +267,6 @@ const grid = new THREE.GridHelper(60, 60, 0x3a4156, 0x1a1e29);
 grid.position.y = 0;
 scene.add(grid);
 
-// đổ bóng tròn mềm dưới chân, đi theo gốc rig
 function makeShadowTexture(){
   const size=128;
   const c=document.createElement('canvas'); c.width=c.height=size;
@@ -273,7 +283,6 @@ const shadowMesh = new THREE.Mesh(shadowGeo, shadowMat);
 shadowMesh.position.set(0, 0.01, 0);
 scene.add(shadowMesh);
 
-// xây rig
 const ONE = new THREE.Vector3(1,1,1);
 const partsMap = {};
 
@@ -293,7 +302,6 @@ RIG_DEFS.forEach(def=>{
   partsMap[def.name] = { mesh, def };
 });
 
-// mặt — mắt oval to giữa mặt + miệng cười, kiểu Roblox cổ điển, gắn làm con của Head
 const eyeGeo = new THREE.SphereGeometry(0.11, 16, 16);
 const faceMat = new THREE.MeshStandardMaterial({ color:0x16181d, roughness:0.35 });
 [-0.34, 0.34].forEach(x=>{
@@ -307,8 +315,6 @@ const mouth = new THREE.Mesh(mouthGeo, faceMat);
 mouth.position.set(0, -0.2, -0.51);
 partsMap['Head'].mesh.add(mouth);
 
-// nhãn hướng Front / Back / Right / Left — gắn làm CON của Torso nên sẽ bám và xoay theo
-// rig (kể cả khi animation có root motion làm Torso trượt đi xa), thay vì đứng yên trên sàn
 function makeDirLabel(label, color){
   const size = 128;
   const c = document.createElement('canvas'); c.width = c.height = size;
@@ -328,17 +334,17 @@ function makeDirLabel(label, color){
 }
 const dirMarkers = new THREE.Group();
 const DIRS = [
-  { label:'F', color:'#ff4d4d', x:0,    y:0,   z:-2.4 }, // Front = -Z, hướng mặt nhân vật quay tới
-  { label:'B', color:'#4d7aff', x:0,    y:0,   z:2.4  }, // Back  = +Z
-  { label:'R', color:'#3ddc84', x:2.4,  y:0,   z:0    }, // Right = +X, bên tay phải nhân vật
-  { label:'L', color:'#ffcb3d', x:-2.4, y:0,   z:0    }, // Left  = -X, bên tay trái nhân vật
+  { label:'F', color:'#ff4d4d', x:0,    y:0,   z:-2.4 }, 
+  { label:'B', color:'#4d7aff', x:0,    y:0,   z:2.4  }, 
+  { label:'R', color:'#3ddc84', x:2.4,  y:0,   z:0    }, 
+  { label:'L', color:'#ffcb3d', x:-2.4, y:0,   z:0    }, 
 ];
 DIRS.forEach(d=>{
   const sprite = makeDirLabel(d.label, d.color);
   sprite.position.set(d.x, d.y, d.z);
   dirMarkers.add(sprite);
 });
-torsoMesh.add(dirMarkers); // dính thẳng vào Torso, không add vào scene riêng
+torsoMesh.add(dirMarkers); 
 
 function composeMatrix(pos, quat){
   return new THREE.Matrix4().compose(pos, quat, ONE);
@@ -358,6 +364,7 @@ function updateRig(t){
     const frames = state.framesByPart[def.name];
     const s = frames ? sampleAt(frames, t) : null;
     const poseM = s ? composeMatrix(s.pos, s.quat) : new THREE.Matrix4();
+    // Công thức khớp chuẩn Motor6D: Part1.CFrame = Torso.CFrame * C0 * Transform * C1:inverse()
     const world = torsoWorld.clone().multiply(def.c0).multiply(poseM).multiply(def.c1inv);
     partsMap[def.name].mesh.matrix.copy(world);
   });
@@ -367,7 +374,7 @@ function updateRig(t){
 }
 
 /* ---------------------------------------------------------------------
-   4) FREE CAMERA — chuột (kéo/scroll) + cảm ứng (kéo 1 ngón / 2 ngón)
+   4) FREE CAMERA
 --------------------------------------------------------------------- */
 const cam = {
   target: new THREE.Vector3(0,3,0),
@@ -497,14 +504,13 @@ const els = {
   liveBody: document.getElementById('liveBody'),
 };
 
-// lấy frame raw GẦN NHẤT (không nội suy) để hiển thị đúng số gốc có trong file, dễ đối chiếu
 function nearestRawFrame(frames, t){
   if (!frames || !frames.length) return null;
   let best = frames[0], bestD = Math.abs(frames[0].t - t);
   for (let i=1;i<frames.length;i++){
     const d = Math.abs(frames[i].t - t);
     if (d < bestD){ bestD = d; best = frames[i]; }
-    if (frames[i].t > t) break; // đã sắp xếp theo t, vượt qua điểm cần thì dừng sớm
+    if (frames[i].t > t) break; 
   }
   return best;
 }
