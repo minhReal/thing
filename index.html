@@ -129,6 +129,7 @@
     <button class="btn toggled" id="loopBtn" title="Lặp lại">🔁 Loop</button>
     <button class="btn" id="speedBtn" title="Tốc độ phát">1×</button>
     <span class="spacer"></span>
+    <button class="btn icon toggled" id="rootLockBtn" title="Khóa vị trí gốc (Giữ nhân vật đứng im tại chỗ)">🔒</button>
     <button class="btn icon toggled" id="dirBtn" title="Hiện/ẩn mốc Front/Back/Left/Right">🧭</button>
     <button class="btn icon" id="clearBtn" title="Xoá animation, về tư thế nghỉ">🗑</button>
   </div>
@@ -152,12 +153,16 @@
 --------------------------------------------------------------------- */
 function CF(x, y, z, rx = 0, ry = 0, rz = 0) {
   const m = new THREE.Matrix4().makeTranslation(x, y, z);
-  const euler = new THREE.Euler(rx, ry, rz, 'XYZ'); // Khớp hoàn toàn thứ tự CFrame.Angles của Roblox
+  const euler = new THREE.Euler(rx, ry, rz, 'XYZ'); 
   const rot = new THREE.Matrix4().makeRotationFromEuler(euler);
   return m.multiply(rot);
 }
 
 const REST_TORSO = CF(0, 3, 0); 
+
+// Thiết lập hằng số cấu hình khớp RootJoint nối giữa HumanoidRootPart và Torso trong Roblox
+const ROOT_C0 = CF(0, 0, 0, -Math.PI/2, 0, Math.PI);
+const ROOT_C1INV = CF(0, 0, 0, -Math.PI/2, 0, Math.PI).invert();
 
 const RIG_DEFS = [
   { name:'Head',       parent:'Torso', size:[2,1,1], color:0xf4c752,
@@ -203,7 +208,6 @@ function parseKeyframeSequence(text){
     const ang = m[4].split(',').map(s=>parseFloat(s.trim()));
     if (isNaN(t) || pos.length<3 || ang.length<3 || pos.some(isNaN) || ang.some(isNaN)) continue;
 
-    // Sử dụng Euler góc 'XYZ' giúp ánh xạ chính xác hành vi quay của Roblox sang Three.js
     const euler = new THREE.Euler(ang[0], ang[1], ang[2], 'XYZ');
     const quat = new THREE.Quaternion().setFromEuler(euler);
     const vpos = new THREE.Vector3(pos[0], pos[1], pos[2]);
@@ -354,7 +358,26 @@ function updateRig(t){
   let torsoWorld;
   if (state.framesByPart['Torso']){
     const s = sampleAt(state.framesByPart['Torso'], t);
-    torsoWorld = REST_TORSO.clone().multiply(composeMatrix(s.pos, s.quat));
+    const poseM = composeMatrix(s.pos, s.quat);
+    
+    // Sửa lỗi sai hệ trục tọa độ: Áp dụng chuẩn công thức Motor6D của RootJoint giống hệt Roblox
+    // Part1.CFrame = HRP.CFrame * RootJoint.C0 * Transform * RootJoint.C1:Inverse()
+    torsoWorld = REST_TORSO.clone().multiply(ROOT_C0).multiply(poseM).multiply(ROOT_C1INV);
+
+    // Tính năng xử lý đứng im tại chỗ (Root Lock) giống hệt Animation Editor của Roblox
+    if (state.rootLock) {
+      const position = new THREE.Vector3();
+      const quaternion = new THREE.Quaternion();
+      const scale = new THREE.Vector3();
+      torsoWorld.decompose(position, quaternion, scale);
+      
+      // Triệt tiêu dịch chuyển trục X và Z toàn cục để nhân vật đứng yên tại tâm grid
+      position.x = 0;
+      position.z = 0; 
+      // Giữ nguyên biến đổi trục Y giúp nhân vật nhún nhảy tự nhiên khi chạy/nhảy
+      
+      torsoWorld.compose(position, quaternion, scale);
+    }
   } else {
     torsoWorld = REST_TORSO.clone();
   }
@@ -364,7 +387,6 @@ function updateRig(t){
     const frames = state.framesByPart[def.name];
     const s = frames ? sampleAt(frames, t) : null;
     const poseM = s ? composeMatrix(s.pos, s.quat) : new THREE.Matrix4();
-    // Công thức khớp chuẩn Motor6D: Part1.CFrame = Torso.CFrame * C0 * Transform * C1:inverse()
     const world = torsoWorld.clone().multiply(def.c0).multiply(poseM).multiply(def.c1inv);
     partsMap[def.name].mesh.matrix.copy(world);
   });
@@ -485,6 +507,7 @@ const state = {
   isPlaying: false,
   loop: true,
   speed: 1,
+  rootLock: true, // Thêm trạng thái mặc định: Bật khóa vị trí gốc
 };
 const SPEEDS = [0.25, 0.5, 1, 2];
 
@@ -664,6 +687,13 @@ els.speedBtn.addEventListener('click', ()=>{
 els.scrub.addEventListener('input', ()=>{
   state.currentTime = parseFloat(els.scrub.value) * state.duration;
 });
+
+// Sự kiện cho nút Root Lock 🔒
+document.getElementById('rootLockBtn').addEventListener('click', e=>{
+  state.rootLock = !state.rootLock;
+  e.currentTarget.classList.toggle('toggled', state.rootLock);
+});
+
 document.getElementById('clearBtn').addEventListener('click', clearAnimation);
 document.getElementById('dirBtn').addEventListener('click', e=>{
   dirMarkers.visible = !dirMarkers.visible;
@@ -692,25 +722,3 @@ function animate(){
 
   if (state.isPlaying && state.duration>0){
     state.currentTime += dt*state.speed;
-    if (state.currentTime >= state.duration){
-      if (state.loop){
-        state.currentTime = state.currentTime % state.duration;
-      } else {
-        state.currentTime = state.duration;
-        state.isPlaying = false;
-        updatePlayButton();
-      }
-    }
-    updateScrubUI();
-  }
-
-  updateRig(state.currentTime);
-  updateLiveReadout(state.currentTime);
-  renderer.render(scene, camera);
-}
-animate();
-
-})();
-</script>
-</body>
-</html>
