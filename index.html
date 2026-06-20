@@ -137,6 +137,7 @@
 <div id="infoPanel">
   <div class="closeRow"><b>Thông tin file</b><button class="btn icon" id="closeInfoBtn">✕</button></div>
   <div id="infoBody"><p class="empty">Chưa có dữ liệu — hãy nhập một file KeyframeSequence.</p></div>
+  <div id="liveBody"></div>
 </div>
 
 <input type="file" id="fileInput" accept=".lua,.txt">
@@ -197,7 +198,7 @@ function parseKeyframeSequence(text){
     const vpos = new THREE.Vector3(pos[0], pos[1], pos[2]);
 
     if (!byPart[name]) byPart[name] = [];
-    byPart[name].push({ t, pos:vpos, quat });
+    byPart[name].push({ t, pos:vpos, quat, rawDeg:[ang[0]*180/Math.PI, ang[1]*180/Math.PI, ang[2]*180/Math.PI], rawPos:pos });
     parsedCount++;
   }
   for (const k in byPart) byPart[k].sort((a,b)=>a.t-b.t);
@@ -493,7 +494,38 @@ const els = {
   dropOverlay: document.getElementById('dropOverlay'),
   infoPanel: document.getElementById('infoPanel'),
   infoBody: document.getElementById('infoBody'),
+  liveBody: document.getElementById('liveBody'),
 };
+
+// lấy frame raw GẦN NHẤT (không nội suy) để hiển thị đúng số gốc có trong file, dễ đối chiếu
+function nearestRawFrame(frames, t){
+  if (!frames || !frames.length) return null;
+  let best = frames[0], bestD = Math.abs(frames[0].t - t);
+  for (let i=1;i<frames.length;i++){
+    const d = Math.abs(frames[i].t - t);
+    if (d < bestD){ bestD = d; best = frames[i]; }
+    if (frames[i].t > t) break; // đã sắp xếp theo t, vượt qua điểm cần thì dừng sớm
+  }
+  return best;
+}
+const LIVE_WATCH = ['Torso','Right Arm','Left Arm','Right Leg','Left Leg','Head'];
+function updateLiveReadout(t){
+  if (!els.infoPanel.classList.contains('open')) return;
+  if (!state.duration){ els.liveBody.innerHTML=''; return; }
+  let html = '<h3>📡 Số liệu thô tại thời điểm hiện tại</h3><ul>';
+  LIVE_WATCH.forEach(name=>{
+    const f = nearestRawFrame(state.framesByPart[name], t);
+    if (!f){ html += '<li><span class="n">'+name+'</span><span class="c">— (không có data)</span></li>'; return; }
+    const p = f.rawPos, a = f.rawDeg;
+    html += '<li style="flex-direction:column; align-items:flex-start; gap:2px;">'
+      + '<span class="n">'+name+' <span class="c">@'+f.t.toFixed(2)+'s</span></span>'
+      + '<span class="c">pos ('+p[0].toFixed(2)+', '+p[1].toFixed(2)+', '+p[2].toFixed(2)+')</span>'
+      + '<span class="c">ang° ('+a[0].toFixed(1)+', '+a[1].toFixed(1)+', '+a[2].toFixed(1)+')</span>'
+      + '</li>';
+  });
+  html += '</ul>';
+  els.liveBody.innerHTML = html;
+}
 
 function fmt(t){ return t.toFixed(2)+'s'; }
 
@@ -572,6 +604,7 @@ function clearAnimation(){
   updatePlayButton();
   updateScrubUI();
   els.infoBody.innerHTML = '<p class="empty">Chưa có dữ liệu — hãy nhập một file KeyframeSequence.</p>';
+  els.liveBody.innerHTML = '';
 }
 
 /* ---------------------------------------------------------------------
@@ -666,6 +699,7 @@ function animate(){
   }
 
   updateRig(state.currentTime);
+  updateLiveReadout(state.currentTime);
   renderer.render(scene, camera);
 }
 animate();
