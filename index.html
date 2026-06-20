@@ -83,6 +83,7 @@
     height: 7px;
     background: var(--accent);
     box-shadow: 0 0 4px var(--accent);
+    border: 1px solid #000000; /* Outline viền đen bao quanh keyframe */
   }
 
   #scrubRow{display:flex; align-items:center; gap:10px; width:100%;}
@@ -182,6 +183,7 @@
     <button class="btn toggled" id="loopBtn" title="Lặp lại">🔁 Loop</button>
     <button class="btn" id="speedBtn" title="Tốc độ phát">1×</button>
     <span class="spacer"></span>
+    <button class="btn icon" id="timelineToggleBtn" title="Hiện/ẩn thanh Timeline kfs">🎬</button>
     <button class="btn icon toggled" id="rootLockBtn" title="Khóa vị trí gốc (Giữ nhân vật đứng im tại chỗ)">🔒</button>
     <button class="btn icon toggled" id="dirBtn" title="Hiện/ẩn mốc Front/Back/Left/Right">🧭</button>
     <button class="btn icon" id="clearBtn" title="Xoá animation, về tư thế nghỉ">🗑</button>
@@ -216,9 +218,9 @@ const REST_TORSO = CF(0, 3, 0);
 const ROOT_C0 = CF(0, 0, 0, -Math.PI/2, 0, Math.PI);
 const ROOT_C1INV = CF(0, 0, 0, -Math.PI/2, 0, Math.PI).invert();
 
-// Cập nhật kích thước Head từ [2,1,1] thành [1.25, 1.25, 1.25] chuẩn Mesh Head Roblox
+// Trả về kích thước Head [2, 1, 1] chuẩn khối R6 nguyên bản
 const RIG_DEFS = [
-  { name:'Head',       parent:'Torso', size:[1.25,1.25,1.25], color:0xf4c752,
+  { name:'Head',       parent:'Torso', size:[2,1,1], color:0xf4c752,
     c0: CF(0, 1, 0, -Math.PI/2, 0, Math.PI), 
     c1inv: CF(0, -0.5, 0, -Math.PI/2, 0, Math.PI).invert() },
     
@@ -340,23 +342,18 @@ const shadowMesh = new THREE.Mesh(shadowGeo, shadowMat);
 shadowMesh.position.set(0, 0.01, 0);
 scene.add(shadowMesh);
 
-// Hàm tự động vẽ khuôn mặt Classic Roblox bằng HTML Canvas 2D
 function createClassicFaceTexture() {
   const canvas = document.createElement('canvas');
   canvas.width = 256; canvas.height = 256;
   const ctx = canvas.getContext('2d');
 
-  // Khởi tạo nền trùng khớp hoàn toàn với mã màu vàng da Rig R6
   ctx.fillStyle = '#f4c752';
   ctx.fillRect(0, 0, 256, 256);
 
   ctx.fillStyle = '#111111';
-  // Vẽ Mắt Trái
   ctx.beginPath(); ctx.ellipse(85, 100, 11, 18, 0, 0, Math.PI * 2); ctx.fill();
-  // Vẽ Mắt Phải
   ctx.beginPath(); ctx.ellipse(171, 100, 11, 18, 0, 0, Math.PI * 2); ctx.fill();
 
-  // Vẽ Miệng Cười Roblox Classic
   ctx.strokeStyle = '#111111';
   ctx.lineWidth = 9;
   ctx.lineCap = 'round';
@@ -383,12 +380,9 @@ RIG_DEFS.forEach(def=>{
   let mat;
 
   if (def.name === 'Head') {
-    // Áp dụng mảng chất liệu đa diện cho hình hộp: [Right, Left, Top, Bottom, Back, Front]
     const defaultMat = new THREE.MeshStandardMaterial({ color:def.color, roughness:0.55, metalness:0.05 });
     const faceTex = createClassicFaceTexture();
     const faceMat = new THREE.MeshStandardMaterial({ map:faceTex, roughness:0.55, metalness:0.05 });
-    
-    // Roblox đối diện theo hướng trục -Z, mặt face sẽ nằm ở vị trí Front (vị trí thứ 5)
     mat = [defaultMat, defaultMat, defaultMat, defaultMat, defaultMat, faceMat];
   } else {
     mat = new THREE.MeshStandardMaterial({ color:def.color, roughness:0.55, metalness:0.05 });
@@ -580,6 +574,7 @@ const state = {
   loop: true,
   speed: 1,
   rootLock: true, 
+  showTimeline: false, // Mặc định tắt dòng thời gian khi khởi tạo
 };
 const SPEEDS = [0.25, 0.5, 1, 2];
 
@@ -600,14 +595,15 @@ const els = {
   timelineContainer: document.getElementById('timelineContainer'),
 };
 
-// Hàm dựng GUI hiển thị mốc Keyframe giống Animation Editor (Read-only)
 function buildTimelineGUI(result) {
   if (!result || state.duration <= 0) {
     els.timelineContainer.style.display = 'none';
     els.timelineContainer.innerHTML = '';
     return;
   }
-  els.timelineContainer.style.display = 'block';
+  
+  // Trạng thái hiển thị phụ thuộc hoàn toàn vào state.showTimeline (Mặc định ẩn)
+  els.timelineContainer.style.display = state.showTimeline ? 'block' : 'none';
 
   let html = `<div style="position: relative; width:100%;">
     <div style="position: absolute; inset: 0; display: flex; pointer-events: none; z-index: 10;">
@@ -617,7 +613,6 @@ function buildTimelineGUI(result) {
       </div>
     </div>`;
 
-  // Duyệt qua tất cả bộ phận thuộc Rig có chứa dữ liệu chuyển động
   const allTracks = ['Torso', ...KNOWN_PART_NAMES.filter(n => n !== 'Torso')];
   allTracks.forEach(name => {
     if (!result.byPart[name]) return;
@@ -625,7 +620,6 @@ function buildTimelineGUI(result) {
       <div class="track-name">${name}</div>
       <div class="track-keyframes">`;
     
-    // Đặt vị trí các khối hình thoi dựa theo tỷ lệ % thời gian xuất hiện
     result.byPart[name].forEach(kf => {
       const pct = (kf.t / state.duration) * 100;
       html += `<div class="kf-diamond" style="left: ${pct}%;" title="Mốc: ${kf.t.toFixed(2)}s"></div>`;
@@ -638,7 +632,6 @@ function buildTimelineGUI(result) {
   els.timelineContainer.innerHTML = html;
 }
 
-// Hàm cập nhật vị trí thanh Playhead màu đỏ theo thời gian thực
 function updateTimelinePlayhead() {
   const playhead = document.getElementById('timelinePlayhead');
   if (playhead && state.duration > 0) {
@@ -693,7 +686,7 @@ function updateScrubUI(){
   els.scrub.value = state.duration>0 ? (state.currentTime/state.duration) : 0;
   els.curTime.textContent = fmt(state.currentTime);
   els.totTime.textContent = fmt(state.duration);
-  updateTimelinePlayhead(); // Cập nhật Playhead đồ họa
+  updateTimelinePlayhead(); 
 }
 
 function buildInfoPanel(result){
@@ -737,7 +730,7 @@ function applyImport(text, filename){
   updatePlayButton();
   updateScrubUI();
   buildInfoPanel(result);
-  buildTimelineGUI(result); // Khởi tạo giao diện dòng thời gian
+  buildTimelineGUI(result); 
 
   const known = KNOWN_PART_NAMES.filter(n => result.byPart[n]).length;
   showToast('Đã nhập "'+filename+'" — '+fmt(result.duration)+', '+known+'/6 part khớp rig.');
@@ -754,7 +747,7 @@ function clearAnimation(){
   els.playBtn.disabled = true;
   updatePlayButton();
   updateScrubUI();
-  buildTimelineGUI(null); // Xoá timeline đồ họa
+  buildTimelineGUI(null); 
   els.infoBody.innerHTML = '<p class="empty">Chưa có dữ liệu — hãy nhập một file KeyframeSequence.</p>';
   els.liveBody.innerHTML = '';
 }
@@ -810,6 +803,15 @@ els.speedBtn.addEventListener('click', ()=>{
 els.scrub.addEventListener('input', ()=>{
   state.currentTime = parseFloat(els.scrub.value) * state.duration;
   updateTimelinePlayhead();
+});
+
+// Sự kiện bấm nút tắt mở giao diện Timeline 
+document.getElementById('timelineToggleBtn').addEventListener('click', e=>{
+  state.showTimeline = !state.showTimeline;
+  e.currentTarget.classList.toggle('toggled', state.showTimeline);
+  if (state.duration > 0 && Object.keys(state.framesByPart).length > 0) {
+    els.timelineContainer.style.display = state.showTimeline ? 'block' : 'none';
+  }
 });
 
 document.getElementById('rootLockBtn').addEventListener('click', e=>{
