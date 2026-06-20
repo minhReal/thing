@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>KFS Viewer — Test KeyframeSequence</title>
+<style>
+  :root{
+    --bg:#0b0d12;
+    --panel:rgba(19,22,30,0.84);
+    --panel-border:#262b38;
+    --text:#e8eaf0;
+    --text-dim:#8b91a3;
+    --accent:#4fa8ff;
+    --danger:#ff5c5c;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; height:100%; background:var(--bg); overflow:hidden;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--text);}
+  #viewport{position:fixed; inset:0; width:100%; height:100%; touch-action:none; display:block;}
+
+  .bar{position:fixed; left:0; right:0; z-index:5; display:flex; gap:8px; align-items:center;
+    background:var(--panel); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+    border-color:var(--panel-border);}
+  #topbar{top:0; padding:calc(10px + env(safe-area-inset-top)) 12px 10px 12px;
+    border-bottom:1px solid var(--panel-border); justify-content:space-between;}
+  #topbar .left{display:flex; align-items:center; gap:8px; min-width:0;}
+  #brand{font-weight:700; font-size:14px; letter-spacing:.3px; white-space:nowrap;}
+  #brand b{color:var(--accent);}
+  #filename{font-size:12px; color:var(--text-dim); white-space:nowrap; overflow:hidden;
+    text-overflow:ellipsis; max-width:38vw;}
+  #topbar .right{display:flex; gap:8px; flex-shrink:0;}
+
+  #bottombar{bottom:0; flex-direction:column; gap:6px; padding:10px 12px calc(10px + env(safe-area-inset-bottom)) 12px;
+    border-top:1px solid var(--panel-border);}
+  #scrubRow{display:flex; align-items:center; gap:10px; width:100%;}
+  #curTime,#totTime{font:12px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; color:var(--text-dim);
+    flex-shrink:0; min-width:52px; text-align:center;}
+  #scrub{flex:1; accent-color:var(--accent); height:22px;}
+  #ctrlRow{display:flex; align-items:center; gap:8px; width:100%;}
+  #ctrlRow .spacer{flex:1;}
+
+  button.btn{
+    background:#1a1e29; border:1px solid var(--panel-border); color:var(--text);
+    border-radius:10px; padding:9px 12px; font-size:13px; font-weight:600;
+    display:flex; align-items:center; gap:6px; cursor:pointer; min-height:40px;
+    transition:background .15s, border-color .15s, opacity .15s;
+  }
+  button.btn:active{background:#23283690;}
+  button.btn:disabled{opacity:.4; cursor:default;}
+  button.btn.primary{background:var(--accent); border-color:var(--accent); color:#0b0d12;}
+  button.btn.icon{width:40px; padding:0; justify-content:center;}
+  button.btn.toggled{border-color:var(--accent); color:var(--accent);}
+
+  #hint{position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); z-index:4;
+    text-align:center; color:var(--text-dim); font-size:14px; line-height:1.6; pointer-events:none;
+    max-width:280px;}
+  #hint b{color:var(--text);}
+
+  #dropOverlay{position:fixed; inset:0; z-index:8; background:rgba(79,168,255,0.12);
+    border:3px dashed var(--accent); display:none; align-items:center; justify-content:center;
+    font-size:16px; font-weight:700; color:var(--accent);}
+  #dropOverlay.show{display:flex;}
+
+  #toast{position:fixed; top:64px; left:50%; transform:translateX(-50%) translateY(-12px);
+    background:#161a24; border:1px solid var(--panel-border); color:var(--text);
+    padding:10px 16px; border-radius:10px; font-size:13px; z-index:9; opacity:0; pointer-events:none;
+    transition:opacity .25s, transform .25s; max-width:88vw; text-align:center;}
+  #toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+  #toast.err{border-color:var(--danger); color:var(--danger);}
+
+  #infoPanel{position:fixed; top:0; right:0; bottom:0; width:300px; max-width:84vw; z-index:7;
+    background:var(--panel); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+    border-left:1px solid var(--panel-border); transform:translateX(100%);
+    transition:transform .25s ease; padding:calc(56px + env(safe-area-inset-top)) 16px 16px 16px;
+    overflow-y:auto; font-size:13px;}
+  #infoPanel.open{transform:translateX(0);}
+  #infoPanel h3{font-size:13px; text-transform:uppercase; letter-spacing:.6px; color:var(--text-dim);
+    margin:18px 0 8px;}
+  #infoPanel h3:first-of-type{margin-top:0;}
+  #infoPanel ul{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px;}
+  #infoPanel li{display:flex; justify-content:space-between; gap:8px; padding:6px 8px;
+    background:#161a24; border-radius:7px;}
+  #infoPanel li .n{color:var(--text);}
+  #infoPanel li .c{color:var(--text-dim); font:12px ui-monospace,monospace;}
+  #infoPanel .empty{color:var(--text-dim); font-size:12px;}
+  #infoPanel .closeRow{position:absolute; top:0; left:0; right:0; padding:calc(10px + env(safe-area-inset-top)) 12px 10px;
+    display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--panel-border);}
+  #infoPanel .closeRow b{font-size:14px;}
+
+  input[type=file]{display:none;}
+
+  @media (max-width:420px){
+    #brand{display:none;}
+    #filename{max-width:42vw;}
+    button.btn{padding:8px 10px; font-size:12px;}
+  }
+</style>
+</head>
+<body>
+
+<canvas id="viewport"></canvas>
+
+<div id="hint"><b>Chưa có animation</b><br>Nhấn "Nhập file" hoặc kéo thả file .lua vào đây để xem KeyframeSequence trên rig R6.</div>
+<div id="dropOverlay">Thả file để nhập KeyframeSequence</div>
+<div id="toast"></div>
+
+<div id="topbar" class="bar">
+  <div class="left">
+    <span id="brand">KFS <b>Viewer</b></span>
+    <span id="filename">Chưa nhập file</span>
+  </div>
+  <div class="right">
+    <button class="btn icon" id="infoBtn" title="Thông tin parts">ⓘ</button>
+    <button class="btn primary" id="importBtn">📂 Nhập file</button>
+  </div>
+</div>
+
+<div id="bottombar" class="bar">
+  <div id="scrubRow">
+    <span id="curTime">0.00s</span>
+    <input type="range" id="scrub" min="0" max="1" step="0.0005" value="0" disabled>
+    <span id="totTime">0.00s</span>
+  </div>
+  <div id="ctrlRow">
+    <button class="btn icon" id="resetCamBtn" title="Reset camera">⟲</button>
+    <button class="btn primary" id="playBtn" disabled>▶ Play</button>
+    <button class="btn toggled" id="loopBtn" title="Lặp lại">🔁 Loop</button>
+    <button class="btn" id="speedBtn" title="Tốc độ phát">1×</button>
+    <span class="spacer"></span>
+    <button class="btn icon" id="clearBtn" title="Xoá animation, về tư thế nghỉ">🗑</button>
+  </div>
+</div>
+
+<div id="infoPanel">
+  <div class="closeRow"><b>Thông tin file</b><button class="btn icon" id="closeInfoBtn">✕</button></div>
+  <div id="infoBody"><p class="empty">Chưa có dữ liệu — hãy nhập một file KeyframeSequence.</p></div>
+</div>
+
+<input type="file" id="fileInput" accept=".lua,.txt">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+"use strict";
+
+/* ---------------------------------------------------------------------
+   1) RIG DEFINITION — chuẩn khớp R6 (Neck / Shoulders / Hips)
+   C0 = offset trên Torso, C1 = offset trên part con (đã đảo dấu sẵn = c1inv)
+--------------------------------------------------------------------- */
+function T(x,y,z){ return new THREE.Matrix4().makeTranslation(x,y,z); }
+
+const REST_TORSO = T(0,3,0); // Torso đứng cách sàn 3 stud (hông cao 2, nửa thân 1)
+
+const RIG_DEFS = [
+  { name:'Head',       parent:'Torso', size:[2,1,1], color:0xf4c752,
+    c0:T(0,1,0),     c1inv:T(0,0.5,0) },
+  { name:'Right Arm',  parent:'Torso', size:[1,2,1], color:0xf4c752,
+    c0:T(1,0.5,0),   c1inv:T(0.5,-0.5,0) },
+  { name:'Left Arm',   parent:'Torso', size:[1,2,1], color:0xf4c752,
+    c0:T(-1,0.5,0),  c1inv:T(-0.5,-0.5,0) },
+  { name:'Right Leg',  parent:'Torso', size:[1,2,1], color:0x4c8c44,
+    c0:T(0.5,-1,0),  c1inv:T(0,-1,0) },
+  { name:'Left Leg',   parent:'Torso', size:[1,2,1], color:0x4c8c44,
+    c0:T(-0.5,-1,0), c1inv:T(0,-1,0) },
+];
+const KNOWN_PART_NAMES = ['Torso','Head','Right Arm','Left Arm','Right Leg','Left Leg'];
+
+/* ---------------------------------------------------------------------
+   2) PARSER — đọc định dạng: 0.123s : TenPart = CFrame.new(x,y,z) * CFrame.Angles(rx,ry,rz)
+--------------------------------------------------------------------- */
+const LINE_RE = /^([\d.eE+\-]+)s\s*:\s*([^=]+?)\s*=\s*CFrame\.new\(([^)]*)\)\s*\*\s*CFrame\.Angles\(([^)]*)\)/;
+
+function parseKeyframeSequence(text){
+  const byPart = {};
+  let parsedCount = 0, totalNonEmpty = 0;
+  const lines = text.split(/\r?\n/);
+  for (let raw of lines){
+    const line = raw.trim();
+    if (!line || line.startsWith('--')) continue;
+    totalNonEmpty++;
+    const m = line.match(LINE_RE);
+    if (!m) continue;
+    const t = parseFloat(m[1]);
+    const name = m[2].trim();
+    const pos = m[3].split(',').map(s=>parseFloat(s.trim()));
+    const ang = m[4].split(',').map(s=>parseFloat(s.trim()));
+    if (isNaN(t) || pos.length<3 || ang.length<3 || pos.some(isNaN) || ang.some(isNaN)) continue;
+
+    const mx = new THREE.Matrix4().makeRotationX(ang[0]);
+    const my = new THREE.Matrix4().makeRotationY(ang[1]);
+    const mz = new THREE.Matrix4().makeRotationZ(ang[2]);
+    const rot = mx.multiply(my).multiply(mz); // Rx * Ry * Rz, giống CFrame.Angles của Roblox
+    const quat = new THREE.Quaternion().setFromRotationMatrix(rot);
+    const vpos = new THREE.Vector3(pos[0], pos[1], pos[2]);
+
+    if (!byPart[name]) byPart[name] = [];
+    byPart[name].push({ t, pos:vpos, quat });
+    parsedCount++;
+  }
+  for (const k in byPart) byPart[k].sort((a,b)=>a.t-b.t);
+  let duration = 0;
+  for (const k in byPart){
+    const arr = byPart[k];
+    if (arr.length) duration = Math.max(duration, arr[arr.length-1].t);
+  }
+  return { byPart, duration, parsedCount, totalNonEmpty };
+}
+
+function sampleAt(frames, t){
+  if (!frames || frames.length === 0) return null;
+  if (t <= frames[0].t) return frames[0];
+  const last = frames[frames.length-1];
+  if (t >= last.t) return last;
+  let lo=0, hi=frames.length-1;
+  while (hi-lo>1){
+    const mid=(lo+hi)>>1;
+    if (frames[mid].t <= t) lo=mid; else hi=mid;
+  }
+  const a=frames[lo], b=frames[hi];
+  const span = (b.t-a.t) || 1e-6;
+  const alpha = (t-a.t)/span;
+  return {
+    pos: a.pos.clone().lerp(b.pos, alpha),
+    quat: a.quat.clone().slerp(b.quat, alpha)
+  };
+}
+
+/* ---------------------------------------------------------------------
+   3) THREE.JS SCENE
+--------------------------------------------------------------------- */
+const canvas = document.getElementById('viewport');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+renderer.outputEncoding = THREE.sRGBEncoding;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b0d12);
+scene.fog = new THREE.Fog(0x0b0d12, 16, 42);
+
+const camera = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 0.1, 1000);
+
+const hemi = new THREE.HemisphereLight(0x8fb4ff, 0x10121a, 0.9);
+scene.add(hemi);
+const key = new THREE.DirectionalLight(0xffffff, 1.0);
+key.position.set(4, 8, 5);
+scene.add(key);
+const rim = new THREE.DirectionalLight(0x4fa8ff, 0.35);
+rim.position.set(-5, 4, -6);
+scene.add(rim);
+
+const grid = new THREE.GridHelper(60, 60, 0x3a4156, 0x1a1e29);
+grid.position.y = 0;
+scene.add(grid);
+
+// đổ bóng tròn mềm dưới chân, đi theo gốc rig
+function makeShadowTexture(){
+  const size=128;
+  const c=document.createElement('canvas'); c.width=c.height=size;
+  const ctx=c.getContext('2d');
+  const g=ctx.createRadialGradient(size/2,size/2,0,size/2,size/2,size/2);
+  g.addColorStop(0,'rgba(0,0,0,0.5)');
+  g.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=g; ctx.fillRect(0,0,size,size);
+  return new THREE.CanvasTexture(c);
+}
+const shadowGeo = new THREE.CircleGeometry(1.7, 32).rotateX(-Math.PI/2);
+const shadowMat = new THREE.MeshBasicMaterial({ map:makeShadowTexture(), transparent:true, depthWrite:false });
+const shadowMesh = new THREE.Mesh(shadowGeo, shadowMat);
+shadowMesh.position.set(0, 0.01, 0);
+scene.add(shadowMesh);
+
+// xây rig
+const ONE = new THREE.Vector3(1,1,1);
+const partsMap = {};
+
+const torsoGeo = new THREE.BoxGeometry(2,2,1);
+const torsoMat = new THREE.MeshStandardMaterial({ color:0x2f6fcb, roughness:0.65, metalness:0.05 });
+const torsoMesh = new THREE.Mesh(torsoGeo, torsoMat);
+torsoMesh.matrixAutoUpdate = false;
+scene.add(torsoMesh);
+partsMap['Torso'] = { mesh:torsoMesh };
+
+RIG_DEFS.forEach(def=>{
+  const geo = new THREE.BoxGeometry(def.size[0], def.size[1], def.size[2]);
+  const mat = new THREE.MeshStandardMaterial({ color:def.color, roughness:0.65, metalness:0.05 });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.matrixAutoUpdate = false;
+  scene.add(mesh);
+  partsMap[def.name] = { mesh, def };
+});
+
+// mặt — mắt oval to giữa mặt + miệng cười, kiểu Roblox cổ điển, gắn làm con của Head
+const eyeGeo = new THREE.SphereGeometry(0.11, 16, 16);
+const faceMat = new THREE.MeshStandardMaterial({ color:0x16181d, roughness:0.35 });
+[-0.34, 0.34].forEach(x=>{
+  const eye = new THREE.Mesh(eyeGeo, faceMat);
+  eye.scale.set(1, 1.8, 0.5);
+  eye.position.set(x, 0.06, -0.52);
+  partsMap['Head'].mesh.add(eye);
+});
+const mouthGeo = new THREE.BoxGeometry(0.34, 0.05, 0.05);
+const mouth = new THREE.Mesh(mouthGeo, faceMat);
+mouth.position.set(0, -0.2, -0.52);
+partsMap['Head'].mesh.add(mouth);
+
+function composeMatrix(pos, quat){
+  return new THREE.Matrix4().compose(pos, quat, ONE);
+}
+
+function updateRig(t){
+  let torsoWorld;
+  if (state.framesByPart['Torso']){
+    const s = sampleAt(state.framesByPart['Torso'], t);
+    torsoWorld = REST_TORSO.clone().multiply(composeMatrix(s.pos, s.quat));
+  } else {
+    torsoWorld = REST_TORSO.clone();
+  }
+  torsoMesh.matrix.copy(torsoWorld);
+
+  RIG_DEFS.forEach(def=>{
+    const frames = state.framesByPart[def.name];
+    const s = frames ? sampleAt(frames, t) : null;
+    const poseM = s ? composeMatrix(s.pos, s.quat) : new THREE.Matrix4();
+    const world = torsoWorld.clone().multiply(def.c0).multiply(poseM).multiply(def.c1inv);
+    partsMap[def.name].mesh.matrix.copy(world);
+  });
+
+  const tp = new THREE.Vector3().setFromMatrixPosition(torsoWorld);
+  shadowMesh.position.set(tp.x, 0.01, tp.z);
+}
+
+/* ---------------------------------------------------------------------
+   4) FREE CAMERA — chuột (kéo/scroll) + cảm ứng (kéo 1 ngón / 2 ngón)
+--------------------------------------------------------------------- */
+const cam = {
+  target: new THREE.Vector3(0,3,0),
+  theta: Math.PI/6, phi: 1.25, radius: 9,
+  tTheta: Math.PI/6, tPhi: 1.25, tRadius: 9,
+};
+const MIN_R=3, MAX_R=40, MIN_PHI=0.15, MAX_PHI=Math.PI-0.15;
+const DEFAULT_CAM = { theta:Math.PI/6, phi:1.25, radius:9, target:new THREE.Vector3(0,3,0) };
+
+function clamp(v,a,b){ return Math.max(a, Math.min(b,v)); }
+
+function positionCamera(){
+  cam.theta += (cam.tTheta-cam.theta)*0.2;
+  cam.phi   += (cam.tPhi-cam.phi)*0.2;
+  cam.radius+= (cam.tRadius-cam.radius)*0.2;
+  camera.position.set(
+    cam.target.x + cam.radius*Math.sin(cam.phi)*Math.sin(cam.theta),
+    cam.target.y + cam.radius*Math.cos(cam.phi),
+    cam.target.z + cam.radius*Math.sin(cam.phi)*Math.cos(cam.theta)
+  );
+  camera.lookAt(cam.target);
+}
+
+function panByScreen(dx, dy){
+  const panSpeed = cam.radius * 0.0016;
+  const right = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0);
+  const up = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 1);
+  cam.target.addScaledVector(right, -dx*panSpeed);
+  cam.target.addScaledVector(up, dy*panSpeed);
+}
+
+const pointers = new Map();
+let dragMode = null;
+let pinchDist = 0, pinchMid = {x:0,y:0};
+
+function distOf(a,b){ return Math.hypot(a.x-b.x, a.y-b.y); }
+function midOf(a,b){ return {x:(a.x+b.x)/2, y:(a.y+b.y)/2}; }
+
+canvas.addEventListener('pointerdown', e=>{
+  canvas.setPointerCapture(e.pointerId);
+  pointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
+  if (pointers.size === 1){
+    dragMode = (e.pointerType==='mouse' && e.shiftKey) ? 'pan' : 'orbit';
+  } else if (pointers.size === 2){
+    dragMode = 'pinch';
+    const pts=[...pointers.values()];
+    pinchDist = distOf(pts[0], pts[1]);
+    pinchMid = midOf(pts[0], pts[1]);
+  }
+});
+canvas.addEventListener('pointermove', e=>{
+  if (!pointers.has(e.pointerId)) return;
+  const prev = pointers.get(e.pointerId);
+  const cur = {x:e.clientX, y:e.clientY};
+  pointers.set(e.pointerId, cur);
+
+  if (dragMode==='orbit' && pointers.size===1){
+    const dx=cur.x-prev.x, dy=cur.y-prev.y;
+    cam.tTheta -= dx*0.0055;
+    cam.tPhi = clamp(cam.tPhi - dy*0.0055, MIN_PHI, MAX_PHI);
+  } else if (dragMode==='pan' && pointers.size===1){
+    panByScreen(cur.x-prev.x, cur.y-prev.y);
+  } else if (dragMode==='pinch' && pointers.size===2){
+    const pts=[...pointers.values()];
+    const d = distOf(pts[0], pts[1]);
+    const m = midOf(pts[0], pts[1]);
+    cam.tRadius = clamp(cam.tRadius * (pinchDist/d), MIN_R, MAX_R);
+    panByScreen(m.x-pinchMid.x, m.y-pinchMid.y);
+    pinchDist = d; pinchMid = m;
+  }
+});
+function endPointer(e){
+  pointers.delete(e.pointerId);
+  if (pointers.size===0) dragMode=null;
+  else if (pointers.size===1) dragMode='orbit';
+}
+canvas.addEventListener('pointerup', endPointer);
+canvas.addEventListener('pointercancel', endPointer);
+canvas.addEventListener('pointerleave', e=>{ if(pointers.size<=1) endPointer(e); });
+
+canvas.addEventListener('wheel', e=>{
+  e.preventDefault();
+  cam.tRadius = clamp(cam.tRadius * (1 + e.deltaY*0.001), MIN_R, MAX_R);
+}, {passive:false});
+canvas.addEventListener('contextmenu', e=>e.preventDefault());
+
+document.getElementById('resetCamBtn').addEventListener('click', ()=>{
+  cam.tTheta = DEFAULT_CAM.theta; cam.tPhi = DEFAULT_CAM.phi; cam.tRadius = DEFAULT_CAM.radius;
+  cam.target.copy(DEFAULT_CAM.target);
+});
+
+function onResize(){
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+}
+window.addEventListener('resize', onResize);
+window.addEventListener('orientationchange', onResize);
+onResize();
+
+/* ---------------------------------------------------------------------
+   5) STATE / PLAYBACK
+--------------------------------------------------------------------- */
+const state = {
+  framesByPart: {},
+  duration: 0,
+  currentTime: 0,
+  isPlaying: false,
+  loop: true,
+  speed: 1,
+};
+const SPEEDS = [0.25, 0.5, 1, 2];
+
+const els = {
+  filename: document.getElementById('filename'),
+  hint: document.getElementById('hint'),
+  scrub: document.getElementById('scrub'),
+  curTime: document.getElementById('curTime'),
+  totTime: document.getElementById('totTime'),
+  playBtn: document.getElementById('playBtn'),
+  loopBtn: document.getElementById('loopBtn'),
+  speedBtn: document.getElementById('speedBtn'),
+  toast: document.getElementById('toast'),
+  dropOverlay: document.getElementById('dropOverlay'),
+  infoPanel: document.getElementById('infoPanel'),
+  infoBody: document.getElementById('infoBody'),
+};
+
+function fmt(t){ return t.toFixed(2)+'s'; }
+
+function showToast(msg, isErr){
+  els.toast.textContent = msg;
+  els.toast.classList.toggle('err', !!isErr);
+  els.toast.classList.add('show');
+  clearTimeout(showToast._h);
+  showToast._h = setTimeout(()=>els.toast.classList.remove('show'), 3200);
+}
+
+function updatePlayButton(){
+  els.playBtn.innerHTML = state.isPlaying ? '⏸ Pause' : '▶ Play';
+}
+function updateScrubUI(){
+  els.scrub.value = state.duration>0 ? (state.currentTime/state.duration) : 0;
+  els.curTime.textContent = fmt(state.currentTime);
+  els.totTime.textContent = fmt(state.duration);
+}
+
+function buildInfoPanel(result){
+  const known = KNOWN_PART_NAMES.filter(n => result.byPart[n]);
+  const unmapped = Object.keys(result.byPart).filter(n => !KNOWN_PART_NAMES.includes(n));
+  let html = '';
+  html += '<h3>File</h3><ul><li><span class="n">Số dòng đọc được</span><span class="c">'+result.parsedCount+' / '+result.totalNonEmpty+'</span></li>';
+  html += '<li><span class="n">Thời lượng</span><span class="c">'+fmt(result.duration)+'</span></li></ul>';
+
+  html += '<h3>✅ Khớp rig R6 (' + known.length + ')</h3>';
+  if (known.length){
+    html += '<ul>' + known.map(n=>'<li><span class="n">'+n+'</span><span class="c">'+result.byPart[n].length+' keyframe</span></li>').join('') + '</ul>';
+  } else {
+    html += '<p class="empty">Không có part nào khớp tên chuẩn R6.</p>';
+  }
+
+  html += '<h3>⚠️ Không thuộc rig, bị bỏ qua (' + unmapped.length + ')</h3>';
+  if (unmapped.length){
+    html += '<ul>' + unmapped.map(n=>'<li><span class="n">'+n+'</span><span class="c">'+result.byPart[n].length+' keyframe</span></li>').join('') + '</ul>';
+  } else {
+    html += '<p class="empty">Không có part thừa nào.</p>';
+  }
+  els.infoBody.innerHTML = html;
+}
+
+function applyImport(text, filename){
+  const result = parseKeyframeSequence(text);
+  if (result.parsedCount === 0){
+    showToast('Không đọc được pose nào. Định dạng cần là: 0.000s : TenPart = CFrame.new(x,y,z) * CFrame.Angles(rx,ry,rz)', true);
+    return;
+  }
+  state.framesByPart = result.byPart;
+  state.duration = result.duration;
+  state.currentTime = 0;
+  state.isPlaying = true;
+
+  els.filename.textContent = filename;
+  els.hint.style.display = 'none';
+  els.scrub.disabled = false;
+  els.playBtn.disabled = false;
+  updatePlayButton();
+  updateScrubUI();
+  buildInfoPanel(result);
+
+  const known = KNOWN_PART_NAMES.filter(n => result.byPart[n]).length;
+  showToast('Đã nhập "'+filename+'" — '+fmt(result.duration)+', '+known+'/6 part khớp rig.');
+}
+
+function clearAnimation(){
+  state.framesByPart = {};
+  state.duration = 0;
+  state.currentTime = 0;
+  state.isPlaying = false;
+  els.filename.textContent = 'Chưa nhập file';
+  els.hint.style.display = '';
+  els.scrub.disabled = true;
+  els.playBtn.disabled = true;
+  updatePlayButton();
+  updateScrubUI();
+  els.infoBody.innerHTML = '<p class="empty">Chưa có dữ liệu — hãy nhập một file KeyframeSequence.</p>';
+}
+
+/* ---------------------------------------------------------------------
+   6) UI WIRING
+--------------------------------------------------------------------- */
+const fileInput = document.getElementById('fileInput');
+document.getElementById('importBtn').addEventListener('click', ()=>fileInput.click());
+fileInput.addEventListener('change', ()=>{
+  const f = fileInput.files[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = ()=>applyImport(reader.result, f.name);
+  reader.onerror = ()=>showToast('Không đọc được file.', true);
+  reader.readAsText(f);
+  fileInput.value = '';
+});
+
+['dragenter','dragover'].forEach(ev=>window.addEventListener(ev, e=>{
+  e.preventDefault();
+  if (e.dataTransfer && [...e.dataTransfer.items||[]].some(i=>i.kind==='file')) els.dropOverlay.classList.add('show');
+}));
+['dragleave','drop'].forEach(ev=>window.addEventListener(ev, e=>{
+  if (ev==='dragleave' && e.target!==document && e.relatedTarget) return;
+  els.dropOverlay.classList.remove('show');
+}));
+window.addEventListener('drop', e=>{
+  e.preventDefault();
+  const f = e.dataTransfer.files && e.dataTransfer.files[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = ()=>applyImport(reader.result, f.name);
+  reader.onerror = ()=>showToast('Không đọc được file.', true);
+  reader.readAsText(f);
+});
+
+els.playBtn.addEventListener('click', ()=>{
+  if (state.duration<=0) return;
+  if (!state.isPlaying && state.currentTime>=state.duration) state.currentTime=0;
+  state.isPlaying = !state.isPlaying;
+  updatePlayButton();
+});
+els.loopBtn.addEventListener('click', ()=>{
+  state.loop = !state.loop;
+  els.loopBtn.classList.toggle('toggled', state.loop);
+});
+els.speedBtn.addEventListener('click', ()=>{
+  const i = SPEEDS.indexOf(state.speed);
+  state.speed = SPEEDS[(i+1)%SPEEDS.length];
+  els.speedBtn.textContent = state.speed+'×';
+});
+els.scrub.addEventListener('input', ()=>{
+  state.currentTime = parseFloat(els.scrub.value) * state.duration;
+});
+document.getElementById('clearBtn').addEventListener('click', clearAnimation);
+
+document.getElementById('infoBtn').addEventListener('click', ()=>els.infoPanel.classList.add('open'));
+document.getElementById('closeInfoBtn').addEventListener('click', ()=>els.infoPanel.classList.remove('open'));
+
+window.addEventListener('keydown', e=>{
+  if (e.code==='Space' && state.duration>0){
+    e.preventDefault();
+    els.playBtn.click();
+  }
+});
+
+/* ---------------------------------------------------------------------
+   7) MAIN LOOP
+--------------------------------------------------------------------- */
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+
+  positionCamera();
+
+  if (state.isPlaying && state.duration>0){
+    state.currentTime += dt*state.speed;
+    if (state.currentTime >= state.duration){
+      if (state.loop){
+        state.currentTime = state.currentTime % state.duration;
+      } else {
+        state.currentTime = state.duration;
+        state.isPlaying = false;
+        updatePlayButton();
+      }
+    }
+    updateScrubUI();
+  }
+
+  updateRig(state.currentTime);
+  renderer.render(scene, camera);
+}
+animate();
+
+})();
+</script>
+</body>
+</html>
