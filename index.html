@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>KFS Viewer — Test KeyframeSequence</title>
+<title>KFS Viewer — Animation Editor Style</title>
 <style>
   :root{
     --bg:#0b0d12;
@@ -32,8 +32,59 @@
     text-overflow:ellipsis; max-width:38vw;}
   #topbar .right{display:flex; gap:8px; flex-shrink:0;}
 
-  #bottombar{bottom:0; flex-direction:column; gap:6px; padding:10px 12px calc(10px + env(safe-area-inset-bottom)) 12px;
+  #bottombar{bottom:0; flex-direction:column; gap:8px; padding:10px 12px calc(10px + env(safe-area-inset-bottom)) 12px;
     border-top:1px solid var(--panel-border);}
+  
+  /* --- KIỂU DÁNG TIMELINE ANIMATION EDITOR --- */
+  #timelineContainer {
+    width: 100%;
+    background: #0d1017;
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    margin-bottom: 4px;
+    overflow: hidden;
+    display: none;
+    max-height: 160px;
+    overflow-y: auto;
+  }
+  .timeline-row {
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid #1a1e29;
+    height: 24px;
+  }
+  .timeline-row:last-child { border-bottom: none; }
+  .track-name {
+    width: 90px;
+    font-size: 11px;
+    color: var(--text-dim);
+    padding-left: 8px;
+    font-weight: 600;
+    border-right: 1px solid var(--panel-border);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    background: #121620;
+    height: 100%;
+    display: flex;
+    align-items: center;
+  }
+  .track-keyframes {
+    flex: 1;
+    position: relative;
+    height: 100%;
+    background: #080a0f;
+  }
+  .kf-diamond {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%) rotate(45deg);
+    width: 7px;
+    height: 7px;
+    background: var(--accent);
+    box-shadow: 0 0 4px var(--accent);
+  }
+
   #scrubRow{display:flex; align-items:center; gap:10px; width:100%;}
   #curTime,#totTime{font:12px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; color:var(--text-dim);
     flex-shrink:0; min-width:52px; text-align:center;}
@@ -118,6 +169,8 @@
 </div>
 
 <div id="bottombar" class="bar">
+  <div id="timelineContainer"></div>
+
   <div id="scrubRow">
     <span id="curTime">0.00s</span>
     <input type="range" id="scrub" min="0" max="1" step="0.0005" value="0" disabled>
@@ -160,12 +213,12 @@ function CF(x, y, z, rx = 0, ry = 0, rz = 0) {
 
 const REST_TORSO = CF(0, 3, 0); 
 
-// Thiết lập hằng số cấu hình khớp RootJoint nối giữa HumanoidRootPart và Torso trong Roblox
 const ROOT_C0 = CF(0, 0, 0, -Math.PI/2, 0, Math.PI);
 const ROOT_C1INV = CF(0, 0, 0, -Math.PI/2, 0, Math.PI).invert();
 
+// Cập nhật kích thước Head từ [2,1,1] thành [1.25, 1.25, 1.25] chuẩn Mesh Head Roblox
 const RIG_DEFS = [
-  { name:'Head',       parent:'Torso', size:[2,1,1], color:0xf4c752,
+  { name:'Head',       parent:'Torso', size:[1.25,1.25,1.25], color:0xf4c752,
     c0: CF(0, 1, 0, -Math.PI/2, 0, Math.PI), 
     c1inv: CF(0, -0.5, 0, -Math.PI/2, 0, Math.PI).invert() },
     
@@ -245,7 +298,7 @@ function sampleAt(frames, t){
 }
 
 /* ---------------------------------------------------------------------
-   3) THREE.JS SCENE
+   3) THREE.JS SCENE & FACE GENERATOR
 --------------------------------------------------------------------- */
 const canvas = document.getElementById('viewport');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
@@ -287,6 +340,34 @@ const shadowMesh = new THREE.Mesh(shadowGeo, shadowMat);
 shadowMesh.position.set(0, 0.01, 0);
 scene.add(shadowMesh);
 
+// Hàm tự động vẽ khuôn mặt Classic Roblox bằng HTML Canvas 2D
+function createClassicFaceTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256; canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+
+  // Khởi tạo nền trùng khớp hoàn toàn với mã màu vàng da Rig R6
+  ctx.fillStyle = '#f4c752';
+  ctx.fillRect(0, 0, 256, 256);
+
+  ctx.fillStyle = '#111111';
+  // Vẽ Mắt Trái
+  ctx.beginPath(); ctx.ellipse(85, 100, 11, 18, 0, 0, Math.PI * 2); ctx.fill();
+  // Vẽ Mắt Phải
+  ctx.beginPath(); ctx.ellipse(171, 100, 11, 18, 0, 0, Math.PI * 2); ctx.fill();
+
+  // Vẽ Miệng Cười Roblox Classic
+  ctx.strokeStyle = '#111111';
+  ctx.lineWidth = 9;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.arc(128, 130, 42, 0.08 * Math.PI, 0.92 * Math.PI, false);
+  ctx.stroke();
+
+  const tex = new THREE.CanvasTexture(canvas);
+  return tex;
+}
+
 const ONE = new THREE.Vector3(1,1,1);
 const partsMap = {};
 
@@ -299,25 +380,25 @@ partsMap['Torso'] = { mesh:torsoMesh };
 
 RIG_DEFS.forEach(def=>{
   const geo = new THREE.BoxGeometry(def.size[0], def.size[1], def.size[2]);
-  const mat = new THREE.MeshStandardMaterial({ color:def.color, roughness:0.55, metalness:0.05 });
+  let mat;
+
+  if (def.name === 'Head') {
+    // Áp dụng mảng chất liệu đa diện cho hình hộp: [Right, Left, Top, Bottom, Back, Front]
+    const defaultMat = new THREE.MeshStandardMaterial({ color:def.color, roughness:0.55, metalness:0.05 });
+    const faceTex = createClassicFaceTexture();
+    const faceMat = new THREE.MeshStandardMaterial({ map:faceTex, roughness:0.55, metalness:0.05 });
+    
+    // Roblox đối diện theo hướng trục -Z, mặt face sẽ nằm ở vị trí Front (vị trí thứ 5)
+    mat = [defaultMat, defaultMat, defaultMat, defaultMat, defaultMat, faceMat];
+  } else {
+    mat = new THREE.MeshStandardMaterial({ color:def.color, roughness:0.55, metalness:0.05 });
+  }
+
   const mesh = new THREE.Mesh(geo, mat);
   mesh.matrixAutoUpdate = false;
   scene.add(mesh);
   partsMap[def.name] = { mesh, def };
 });
-
-const eyeGeo = new THREE.SphereGeometry(0.11, 16, 16);
-const faceMat = new THREE.MeshStandardMaterial({ color:0x16181d, roughness:0.35 });
-[-0.34, 0.34].forEach(x=>{
-  const eye = new THREE.Mesh(eyeGeo, faceMat);
-  eye.scale.set(1, 1.8, 0.5);
-  eye.position.set(x, 0.06, -0.51);
-  partsMap['Head'].mesh.add(eye);
-});
-const mouthGeo = new THREE.BoxGeometry(0.34, 0.05, 0.05);
-const mouth = new THREE.Mesh(mouthGeo, faceMat);
-mouth.position.set(0, -0.2, -0.51);
-partsMap['Head'].mesh.add(mouth);
 
 function makeDirLabel(label, color){
   const size = 128;
@@ -359,23 +440,14 @@ function updateRig(t){
   if (state.framesByPart['Torso']){
     const s = sampleAt(state.framesByPart['Torso'], t);
     const poseM = composeMatrix(s.pos, s.quat);
-    
-    // Sửa lỗi sai hệ trục tọa độ: Áp dụng chuẩn công thức Motor6D của RootJoint giống hệt Roblox
-    // Part1.CFrame = HRP.CFrame * RootJoint.C0 * Transform * RootJoint.C1:Inverse()
     torsoWorld = REST_TORSO.clone().multiply(ROOT_C0).multiply(poseM).multiply(ROOT_C1INV);
 
-    // Tính năng xử lý đứng im tại chỗ (Root Lock) giống hệt Animation Editor của Roblox
     if (state.rootLock) {
       const position = new THREE.Vector3();
       const quaternion = new THREE.Quaternion();
       const scale = new THREE.Vector3();
       torsoWorld.decompose(position, quaternion, scale);
-      
-      // Triệt tiêu dịch chuyển trục X và Z toàn cục để nhân vật đứng yên tại tâm grid
-      position.x = 0;
-      position.z = 0; 
-      // Giữ nguyên biến đổi trục Y giúp nhân vật nhún nhảy tự nhiên khi chạy/nhảy
-      
+      position.x = 0; position.z = 0; 
       torsoWorld.compose(position, quaternion, scale);
     }
   } else {
@@ -498,7 +570,7 @@ window.addEventListener('orientationchange', onResize);
 onResize();
 
 /* ---------------------------------------------------------------------
-   5) STATE / PLAYBACK
+   5) STATE / PLAYBACK & TIMELINE GENERATOR
 --------------------------------------------------------------------- */
 const state = {
   framesByPart: {},
@@ -507,7 +579,7 @@ const state = {
   isPlaying: false,
   loop: true,
   speed: 1,
-  rootLock: true, // Thêm trạng thái mặc định: Bật khóa vị trí gốc
+  rootLock: true, 
 };
 const SPEEDS = [0.25, 0.5, 1, 2];
 
@@ -525,7 +597,55 @@ const els = {
   infoPanel: document.getElementById('infoPanel'),
   infoBody: document.getElementById('infoBody'),
   liveBody: document.getElementById('liveBody'),
+  timelineContainer: document.getElementById('timelineContainer'),
 };
+
+// Hàm dựng GUI hiển thị mốc Keyframe giống Animation Editor (Read-only)
+function buildTimelineGUI(result) {
+  if (!result || state.duration <= 0) {
+    els.timelineContainer.style.display = 'none';
+    els.timelineContainer.innerHTML = '';
+    return;
+  }
+  els.timelineContainer.style.display = 'block';
+
+  let html = `<div style="position: relative; width:100%;">
+    <div style="position: absolute; inset: 0; display: flex; pointer-events: none; z-index: 10;">
+      <div style="width: 90px; flex-shrink: 0;"></div>
+      <div style="flex: 1; position: relative; height: 100%;">
+        <div id="timelinePlayhead" style="position: absolute; top: 0; bottom: 0; width: 2px; background: var(--danger); left: 0%;"></div>
+      </div>
+    </div>`;
+
+  // Duyệt qua tất cả bộ phận thuộc Rig có chứa dữ liệu chuyển động
+  const allTracks = ['Torso', ...KNOWN_PART_NAMES.filter(n => n !== 'Torso')];
+  allTracks.forEach(name => {
+    if (!result.byPart[name]) return;
+    html += `<div class="timeline-row">
+      <div class="track-name">${name}</div>
+      <div class="track-keyframes">`;
+    
+    // Đặt vị trí các khối hình thoi dựa theo tỷ lệ % thời gian xuất hiện
+    result.byPart[name].forEach(kf => {
+      const pct = (kf.t / state.duration) * 100;
+      html += `<div class="kf-diamond" style="left: ${pct}%;" title="Mốc: ${kf.t.toFixed(2)}s"></div>`;
+    });
+
+    html += `</div></div>`;
+  });
+
+  html += `</div>`;
+  els.timelineContainer.innerHTML = html;
+}
+
+// Hàm cập nhật vị trí thanh Playhead màu đỏ theo thời gian thực
+function updateTimelinePlayhead() {
+  const playhead = document.getElementById('timelinePlayhead');
+  if (playhead && state.duration > 0) {
+    const pct = (state.currentTime / state.duration) * 100;
+    playhead.style.left = pct + '%';
+  }
+}
 
 function nearestRawFrame(frames, t){
   if (!frames || !frames.length) return null;
@@ -573,6 +693,7 @@ function updateScrubUI(){
   els.scrub.value = state.duration>0 ? (state.currentTime/state.duration) : 0;
   els.curTime.textContent = fmt(state.currentTime);
   els.totTime.textContent = fmt(state.duration);
+  updateTimelinePlayhead(); // Cập nhật Playhead đồ họa
 }
 
 function buildInfoPanel(result){
@@ -616,6 +737,7 @@ function applyImport(text, filename){
   updatePlayButton();
   updateScrubUI();
   buildInfoPanel(result);
+  buildTimelineGUI(result); // Khởi tạo giao diện dòng thời gian
 
   const known = KNOWN_PART_NAMES.filter(n => result.byPart[n]).length;
   showToast('Đã nhập "'+filename+'" — '+fmt(result.duration)+', '+known+'/6 part khớp rig.');
@@ -632,6 +754,7 @@ function clearAnimation(){
   els.playBtn.disabled = true;
   updatePlayButton();
   updateScrubUI();
+  buildTimelineGUI(null); // Xoá timeline đồ họa
   els.infoBody.innerHTML = '<p class="empty">Chưa có dữ liệu — hãy nhập một file KeyframeSequence.</p>';
   els.liveBody.innerHTML = '';
 }
@@ -686,9 +809,9 @@ els.speedBtn.addEventListener('click', ()=>{
 });
 els.scrub.addEventListener('input', ()=>{
   state.currentTime = parseFloat(els.scrub.value) * state.duration;
+  updateTimelinePlayhead();
 });
 
-// Sự kiện cho nút Root Lock 🔒
 document.getElementById('rootLockBtn').addEventListener('click', e=>{
   state.rootLock = !state.rootLock;
   e.currentTarget.classList.toggle('toggled', state.rootLock);
