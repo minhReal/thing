@@ -1,715 +1,700 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>KFS Studio Viewer — Core Upgrade</title>
-<style>
-  :root{
-    --bg:#0b0d12;
-    --panel:rgba(19,22,30,0.84);
-    --panel-border:#262b38;
-    --text:#e8eaf0;
-    --text-dim:#8b91a3;
-    --accent:#4fa8ff;
-    --danger:#ff5c5c;
-    --warn:#ff9f43;
-  }
-  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
-  html,body{margin:0; height:100%; background:var(--bg); overflow:hidden;
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    color:var(--text);}
-  #viewport{position:fixed; inset:0; width:100%; height:100%; touch-action:none; display:block;}
+  <meta charset="UTF-8">
+  <title>Roblox Keyframe Optimizer & Visualizer Pro</title>
+  <style>
+    :root {
+      --bg-main: #1e1e24;
+      --bg-sidebar: #25252d;
+      --bg-card: #2d2d37;
+      --text-color: #abb2bf;
+      --accent: #61afef;
+      --success: #98c379;
+      --warning: #e5c07b;
+      --danger: #e06c75;
+    }
 
-  .bar{position:fixed; left:0; right:0; z-index:5; display:flex; gap:8px; align-items:center;
-    background:var(--panel); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
-    border-color:var(--panel-border);}
-  #topbar{top:0; padding:calc(10px + env(safe-area-inset-top)) 12px 10px 12px;
-    border-bottom:1px solid var(--panel-border); justify-content:space-between;}
-  #topbar .left{display:flex; align-items:center; gap:8px; min-width:0;}
-  #brand{font-weight:700; font-size:14px; letter-spacing:.3px; white-space:nowrap;}
-  #brand b{color:var(--accent);}
-  #filename{font-size:12px; color:var(--text-dim); white-space:nowrap; overflow:hidden;
-    text-overflow:ellipsis; max-width:38vw;}
-  #topbar .right{display:flex; gap:8px; flex-shrink:0;}
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: var(--bg-main);
+      color: var(--text-color);
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
 
-  #bottombar{bottom:0; flex-direction:column; gap:8px; padding:10px 12px calc(10px + env(safe-area-inset-bottom)) 12px;
-    border-top:1px solid var(--panel-border);}
-  
-  #timelineContainer {
-    width: 100%; background: #0d1017; border: 1px solid var(--panel-border);
-    border-radius: 8px; margin-bottom: 4px; overflow: hidden; display: none;
-    max-height: 140px; overflow-y: auto;
-  }
-  .timeline-row { display: flex; align-items: center; border-bottom: 1px solid #1a1e29; height: 24px; }
-  .timeline-row:last-child { border-bottom: none; }
-  .track-name {
-    width: 90px; font-size: 11px; color: var(--text-dim); padding-left: 8px; font-weight: 600;
-    border-right: 1px solid var(--panel-border); white-space: nowrap; overflow: hidden;
-    text-overflow: ellipsis; background: #121620; height: 100%; display: flex; align-items: center;
-  }
-  .track-keyframes { flex: 1; position: relative; height: 100%; background: #080a0f; }
-  .kf-diamond {
-    position: absolute; top: 50%; transform: translate(-50%, -50%) rotate(45deg);
-    width: 7px; height: 7px; background: var(--accent); box-shadow: 0 0 4px var(--accent); border: 1px solid #000000;
-  }
+    /* Sidebar Điều Khiển */
+    .sidebar {
+      width: 380px;
+      background-color: var(--bg-sidebar);
+      border-right: 1px solid #3e4452;
+      display: flex;
+      flex-direction: column;
+      padding: 15px;
+      gap: 15px;
+      z-index: 10;
+    }
 
-  #scrubRow{display:flex; align-items:center; gap:10px; width:100%;}
-  #curTime,#totTime{font:12px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; color:var(--text-dim);
-    flex-shrink:0; min-width:52px; text-align:center;}
-  #scrub{flex:1; accent-color:var(--accent); height:22px;}
-  
-  #ctrlRow{display:flex; align-items:center; gap:8px; width:100%; position: relative;}
-  #ctrlRow .spacer{flex:1;}
+    h3 { color: #fff; margin-bottom: 5px; font-size: 16px; display: flex; align-items: center; gap: 8px;}
+    
+    .panel {
+      background: var(--bg-card);
+      border: 1px solid #3e4452;
+      border-radius: 6px;
+      padding: 12px;
+    }
 
-  /* MENU POP-UP DỌC CHUI TỪ DƯỚI LÊN */
-  .menu-group { position: relative; display: flex; flex-direction: column; align-items: center; }
-  .vertical-menu {
-    position: absolute; bottom: 100%; right: 0; display: flex; flex-direction: column; gap: 8px;
-    opacity: 0; pointer-events: none; transform: translateY(15px);
-    transition: opacity 0.22s cubic-bezier(0.4, 0, 0.2, 1), transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
-    margin-bottom: 10px; align-items: flex-end;
-  }
-  .vertical-menu.open { opacity: 1; pointer-events: auto; transform: translateY(0); }
+    textarea {
+      width: 100%;
+      height: 120px;
+      background: #1e222b;
+      border: 1px solid #3e4452;
+      color: #98c379;
+      font-family: monospace;
+      padding: 8px;
+      border-radius: 4px;
+      resize: none;
+      font-size: 11px;
+    }
 
-  #fpsSelect {
-    background: #1a1e29; border: 1px solid var(--panel-border); color: var(--text);
-    border-radius: 10px; padding: 9px 12px; font-size: 13px; font-weight: 600;
-    cursor: pointer; outline: none; width: 140px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-  }
+    .btn-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
 
-  button.btn{
-    background:#1a1e29; border:1px solid var(--panel-border); color:var(--text);
-    border-radius:10px; padding:9px 12px; font-size:13px; font-weight:600;
-    display:flex; align-items:center; gap:6px; cursor:pointer; min-height:40px;
-    transition:background .15s, border-color .15s, opacity .15s;
-    user-select: none; -webkit-user-select: none; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-  }
-  button.btn:active{background:#23283690;}
-  button.btn:disabled{opacity:.3; cursor:default; pointer-events: none;}
-  button.btn.primary{background:var(--accent); border-color:var(--accent); color:#0b0d12;}
-  button.btn.icon{width:40px; padding:0; justify-content:center; flex-shrink: 0;}
-  button.btn.toggled{border-color:var(--accent); color:var(--accent);}
+    .btn {
+      flex: 1;
+      min-width: 100px;
+      background: #3e4452;
+      color: #fff;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 12px;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+    }
+    .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn-primary { background: var(--accent); }
+    .btn-warning { background: var(--warning); color: #1e222b; }
+    .btn-brick { background: #d19a66; color: #fff; }
 
-  /* CHỈNH TOOLTIP CHUI RA PHÍA BÊN TRÁI CỦA NÚT */
-  #customTooltip {
-    position: fixed; background: rgba(11, 13, 18, 0.95); color: var(--text);
-    padding: 6px 12px; border-radius: 6px; font-size: 11px; font-weight: 600;
-    pointer-events: none; z-index: 9999; opacity: 0;
-    border: 1px solid var(--panel-border); box-shadow: 0 4px 12px rgba(0,0,0,0.6);
-    white-space: nowrap; transition: opacity 0.15s cubic-bezier(0.4, 0, 0.2, 1), transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-    transform: translate(calc(-100% - 14px), -50%) scale(0.92);
-  }
-  #customTooltip.show {
-    opacity: 1; transform: translate(calc(-100% - 8px), -50%) scale(1);
-  }
+    .control-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 5px;
+    }
+    input[type="number"] {
+      background: #1e222b;
+      border: 1px solid #3e4452;
+      color: #fff;
+      padding: 5px;
+      border-radius: 4px;
+      text-align: center;
+    }
 
-  /* MODAL EXPORT TÙY CHỌN CAO CẤP */
-  #exportModal {
-    position: fixed; inset: 0; z-index: 100; background: rgba(5,6,8,0.8);
-    backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
-    display: none; align-items: center; justify-content: center;
-  }
-  .modal-content {
-    background: #13161f; border: 1px solid var(--panel-border); padding: 20px;
-    border-radius: 14px; width: 350px; max-width: 90vw; display: flex; flex-direction: column; gap: 14px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-  }
-  .modal-content h3 { margin: 0; font-size: 15px; color: var(--text); font-weight: 700; }
-  .modal-field { display: flex; flex-direction: column; gap: 5px; }
-  .modal-field label { font-size: 12px; color: var(--text-dim); }
-  .modal-input {
-    background: #090b0f; border: 1px solid var(--panel-border); color: var(--text);
-    padding: 8px 12px; border-radius: 8px; font-size: 13px; outline: none; width: 100%;
-  }
-  .modal-input:focus { border-color: var(--accent); }
-  .part-selector-grid {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 6px; background: #090b0f;
-    padding: 10px; border-radius: 8px; border: 1px solid var(--panel-border); max-height: 120px; overflow-y: auto;
-  }
-  .part-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text); cursor: pointer; }
-  .part-item input { accent-color: var(--accent); cursor: pointer; }
+    /* Vùng hiển thị 3D và Timeline */
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
 
-  #hint{position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); z-index:4;
-    text-align:center; color:var(--text-dim); font-size:14px; line-height:1.6; pointer-events:none; max-width:320px;}
-  #hint b{color:var(--text);}
-  #dropOverlay{position:fixed; inset:0; z-index:8; background:rgba(79,168,255,0.12);
-    border:3px dashed var(--accent); display:none; align-items:center; justify-content:center; font-size:16px; font-weight:700; color:var(--accent);}
-  #dropOverlay.show{display:flex;}
-  #toast{position:fixed; top:64px; left:50%; transform:translateX(-50%) translateY(-12px);
-    background:#161a24; border:1px solid var(--panel-border); color:var(--text);
-    padding:10px 16px; border-radius:10px; font-size:13px; z-index:9; opacity:0; pointer-events:none;
-    transition:opacity .25s, transform .25s; max-width:88vw; text-align:center;}
-  #toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
-  #toast.err{border-color:var(--danger); color:var(--danger);}
+    #viewport {
+      flex: 1;
+      background: #14141a;
+    }
 
-  #infoPanel{position:fixed; top:0; right:0; bottom:0; width:300px; max-width:84vw; z-index:7;
-    background:var(--panel); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
-    border-left:1px solid var(--panel-border); transform:translateX(100%);
-    transition:transform .25s ease; padding:calc(56px + env(safe-area-inset-top)) 16px 16px 16px; overflow-y:auto; font-size:13px;}
-  #infoPanel.open{transform:translateX(0);}
-  #infoPanel h3{font-size:13px; text-transform:uppercase; letter-spacing:.6px; color:var(--text-dim); margin:18px 0 8px;}
-  #infoPanel h3:first-of-type{margin-top:0;}
-  #infoPanel ul{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px;}
-  #infoPanel li{display:flex; justify-content:space-between; gap:8px; padding:6px 8px; background:#161a24; border-radius:7px;}
-  #infoPanel li .n{color:var(--text);}
-  #infoPanel li .c{color:var(--text-dim); font:12px ui-monospace,monospace;}
-  #infoPanel .empty{color:var(--text-dim); font-size:12px;}
-  #infoPanel .closeRow{position:absolute; top:0; left:0; right:0; padding:calc(10px + env(safe-area-inset-top)) 12px 10px;
-    display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--panel-border);}
-  #infoPanel .closeRow b{font-size:14px;}
+    /* Thanh Timeline */
+    .timeline-container {
+      height: 100px;
+      background: var(--bg-sidebar);
+      border-top: 1px solid #3e4452;
+      padding: 10px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .timeline-slider-row {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+    input[type="range"] {
+      flex: 1;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
 
-  input[type=file]{display:none;}
-  @media (max-width:420px){ #brand{display:none;} #filename{max-width:42vw;} button.btn{padding:8px 10px; font-size:12px;} }
-</style>
+    /* Toast thông báo */
+    #toast {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      padding: 10px 20px;
+      background: var(--success);
+      color: #1e222b;
+      font-weight: bold;
+      border-radius: 4px;
+      display: none;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      z-index: 100;
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
 
-<canvas id="viewport"></canvas>
+  <div id="toast">Thông báo ở đây!</div>
 
-<div id="hint"><b>Chưa có dữ liệu</b><br>Kéo thả file <b>.lua (KFS)</b> hoặc file cấu trúc dạng text vào đây để chạy thử nghiệm.</div>
-<div id="dropOverlay">Thả file vào đây để nhập dữ liệu</div>
-<div id="toast"></div>
-<div id="customTooltip"></div>
-
-<div id="exportModal">
-  <div class="modal-content">
-    <h3>Tùy chọn trích xuất file (.lua)</h3>
-    <div class="modal-field">
-      <label for="exportNameInput">Tên cấu trúc file lưu trữ:</label>
-      <input type="text" id="exportNameInput" class="modal-input" placeholder="animation_backup.lua">
-    </div>
-    <div class="modal-field">
-      <label>Chọn các Part muốn giữ lại khi Export:</label>
-      <div id="partCheckboxContainer" class="part-selector-grid"></div>
-    </div>
-    <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:4px;">
-      <button class="btn" id="cancelExportBtn">Hủy bỏ</button>
-      <button class="btn primary" id="confirmExportBtn">Xác nhận Lưu</button>
-    </div>
-  </div>
-</div>
-
-<div id="topbar" class="bar">
-  <div class="left">
-    <span id="brand">KFS <b>Viewer</b></span>
-    <span id="filename">Chưa nhập file</span>
-  </div>
-  <div class="right">
-    <button class="btn icon" id="infoBtn" data-title="Thông tin chi tiết mã">ⓘ</button>
-    <button class="btn primary" id="importBtn">📂 Nhập file</button>
-  </div>
-</div>
-
-<div id="bottombar" class="bar">
-  <div id="timelineContainer"></div>
-
-  <div id="scrubRow">
-    <span id="curTime">0.00s</span>
-    <input type="range" id="scrub" min="0" max="1" step="0.0005" value="0" disabled>
-    <span id="totTime">0.00s</span>
-  </div>
-  
-  <div id="ctrlRow">
-    <button class="btn primary" id="playBtn" disabled data-title="Phát / Tạm dừng hoạt ảnh">▶ Play</button>
-    <button class="btn toggled" id="loopBtn" data-title="Bật/Tắt chế độ lặp lại">🔁 Loop</button>
-    <button class="btn" id="speedBtn" data-title="Thay đổi tốc độ phát hoạt ảnh">1×</button>
-    
-    <span class="spacer"></span>
-
-    <div class="menu-group">
-      <div id="fpsMenu" class="vertical-menu">
-        <select id="fpsSelect">
-          <option value="original">FPS (Gốc)</option>
-          <option value="60">60 FPS</option>
-          <option value="45">45 FPS</option>
-          <option value="30">30 FPS</option>
-          <option value="15">15 FPS</option>
-          <option value="custom">Tùy chỉnh...</option>
-        </select>
-        <button class="btn primary" id="exportBtn" style="width:140px; justify-content:center;" data-title="Cấu hình tùy chọn & Xuất .lua">📥 Export .lua</button>
+  <div class="sidebar">
+    <div class="panel">
+      <h3>📥 Nạp Dữ Liệu Keyframe</h3>
+      <textarea id="luaInput" placeholder="Dán nội dung file .lua vào đây hoặc chọn file bên dưới..."></textarea>
+      <div class="btn-group">
+        <input type="file" id="filePicker" accept=".lua,.txt" style="display:none;">
+        <button class="btn btn-primary" onclick="document.getElementById('filePicker').click()">Chọn File Lua</button>
+        <button class="btn" id="loadBtn">Xử Lý Dữ Liệu</button>
       </div>
-      <button class="btn icon" id="fpsMenuBtn" disabled data-title="Tối ưu hóa & Đổi FPS">♻️</button>
     </div>
 
-    <div class="menu-group">
-      <div id="slidingMenu" class="vertical-menu">
-        <button class="btn icon" id="resetCamBtn" data-title="Đặt lại góc quay camera">⟲</button>
-        <button class="btn icon" id="timelineToggleBtn" data-title="Bật/Tắt Timeline kfs">🎬</button>
-        <button class="btn icon toggled" id="rootLockBtn" data-title="Khóa/Mở gốc Root Part">🔒</button>
-        <button class="btn icon" id="redundantBtn" data-title="Highlight / Part chứa Keyframe thừa">🧱</button>
-        <button class="btn icon" id="clearBtn" data-title="Xóa sạch dữ liệu hoạt ảnh">🗑</button>
+    <div class="panel">
+      <h3>📊 Thông Tin Cấu Trúc File</h3>
+      <div id="infoBody" style="font-size: 13px; color: #abb2bf; line-height: 1.5;">
+        <i>Chưa có file nào được nạp. Hãy dán code hoặc chọn file!</i>
       </div>
-      <button class="btn icon" id="settingBtn" data-title="Cài đặt hệ thống tiện ích">⚙️</button>
+    </div>
+
+    <div class="panel">
+      <h3>⚙️ Thanh Công Cụ</h3>
+      <div class="control-row">
+        <label>FPS Đặt:</label>
+        <input type="number" id="fpsInput" value="60" min="1" max="120" style="width:55px;">
+        <span id="timeDisplay" style="margin-left: auto; font-family: monospace; color: var(--accent);">0.000s</span>
+      </div>
+      <div class="btn-group" style="margin-top: 10px;">
+        <button class="btn btn-warning" id="compressBtn">⚡ Nén Frame</button>
+        <button class="btn btn-brick" id="buildBrickBtn">🧱 Tạo Part Thừa</button>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-primary" id="exportBtn" style="background-color: var(--success); color:#1e222b; width:100%;">💾 Xuất File LUA Đã Tối Ưu</button>
+      </div>
     </div>
   </div>
-</div>
 
-<div id="infoPanel">
-  <div class="closeRow"><b>Thông tin file</b><button class="btn icon" id="closeInfoBtn">✕</button></div>
-  <div id="infoBody"><p class="empty">Chưa có dữ liệu — hãy nhập một file KeyframeSequence.</p></div>
-  <div id="liveBody"></div>
-</div>
-
-<input type="file" id="fileInput" accept=".lua,.txt">
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script>
-(function(){
-"use strict";
-
-function CF(x, y, z, rx = 0, ry = 0, rz = 0) {
-  const m = new THREE.Matrix4().makeTranslation(x, y, z);
-  const euler = new THREE.Euler(rx, ry, rz, 'XYZ'); 
-  return m.multiply(new THREE.Matrix4().makeRotationFromEuler(euler));
-}
-
-const REST_TORSO = CF(0, 3, 0); 
-const ROOT_C0 = CF(0, 0, 0, -Math.PI/2, 0, Math.PI);
-const ROOT_C1INV = CF(0, 0, 0, -Math.PI/2, 0, Math.PI).invert();
-
-const RIG_DEFS = [
-  { name:'Head',       parent:'Torso', size:[1,1,1], color:0xf4c752, c0: CF(0, 1, 0, -Math.PI/2, 0, Math.PI), c1inv: CF(0, -0.5, 0, -Math.PI/2, 0, Math.PI).invert() },
-  { name:'Right Arm',  parent:'Torso', size:[1,2,1], color:0xf4c752, c0: CF(1, 0.5, 0, 0, Math.PI/2, 0), c1inv: CF(-0.5, 0.5, 0, 0, Math.PI/2, 0).invert() },
-  { name:'Left Arm',   parent:'Torso', size:[1,2,1], color:0xf4c752, c0: CF(-1, 0.5, 0, 0, -Math.PI/2, 0), c1inv: CF(0.5, 0.5, 0, 0, -Math.PI/2, 0).invert() },
-  { name:'Right Leg',  parent:'Torso', size:[1,2,1], color:0x4c8c44, c0: CF(1, -1, 0, 0, Math.PI/2, 0), c1inv: CF(0.5, 1, 0, 0, Math.PI/2, 0).invert() },
-  { name:'Left Leg',   parent:'Torso', size:[1,2,1], color:0x4c8c44, c0: CF(-1, -1, 0, 0, -Math.PI/2, 0), c1inv: CF(-0.5, 1, 0, 0, -Math.PI/2, 0).invert() },
-];
-const KNOWN_PART_NAMES = ['Torso','Head','Right Arm','Left Arm','Right Leg','Left Leg'];
-
-const LINE_RE = /^([\d.eE+\-]+)s\s*:\s*([^=]+?)\s*=\s*CFrame\.new\(([^)]*)\)\s*\*\s*CFrame\.Angles\(([^)]*)\)/;
-
-function parseKeyframeSequence(text){
-  const byPart = {}; let parsedCount = 0, totalNonEmpty = 0;
-  const lines = text.split(/\r?\n/);
-  for (let raw of lines){
-    const line = raw.trim(); if (!line || line.startsWith('--')) continue; totalNonEmpty++;
-    const m = line.match(LINE_RE); if (!m) continue;
-    const t = parseFloat(m[1]); const name = m[2].trim();
-    const pos = m[3].split(',').map(s=>parseFloat(s.trim()));
-    const ang = m[4].split(',').map(s=>parseFloat(s.trim()));
-    if (isNaN(t) || pos.length<3 || ang.length<3 || pos.some(isNaN) || ang.some(isNaN)) continue;
-
-    const euler = new THREE.Euler(ang[0], ang[1], ang[2], 'XYZ');
-    const quat = new THREE.Quaternion().setFromEuler(euler);
-    const vpos = new THREE.Vector3(pos[0], pos[1], pos[2]);
-
-    if (!byPart[name]) byPart[name] = [];
-    byPart[name].push({ t, pos:vpos, quat }); parsedCount++;
-  }
-  for (const k in byPart) byPart[k].sort((a,b)=>a.t-b.t);
-  let duration = 0;
-  for (const k in byPart){ const arr = byPart[k]; if (arr.length) duration = Math.max(duration, arr[arr.length-1].t); }
-  return { byPart, duration, parsedCount, totalNonEmpty };
-}
-
-function sampleAt(frames, t){
-  if (!frames || frames.length === 0) return null;
-  if (t <= frames[0].t) return frames[0];
-  const last = frames[frames.length-1]; if (t >= last.t) return last;
-  let lo=0, hi=frames.length-1;
-  while (hi-lo>1){ const mid=(lo+hi)>>1; if (frames[mid].t <= t) lo=mid; else hi=mid; }
-  const a=frames[lo], b=frames[hi]; const span = (b.t-a.t) || 1e-6; const alpha = (t-a.t)/span;
-  return { pos: a.pos.clone().lerp(b.pos, alpha), quat: a.quat.clone().slerp(b.quat, alpha) };
-}
-
-/* ---------------------------------------------------------------------
-   THREE.JS ENGINE & INTERACTIVE RIG SETUP
---------------------------------------------------------------------- */
-const canvas = document.getElementById('viewport');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
-renderer.setSize(innerWidth, innerHeight);
-renderer.outputEncoding = THREE.sRGBEncoding;
-
-const scene = new THREE.Scene(); scene.background = new THREE.Color(0x0b0d12); scene.fog = new THREE.Fog(0x0b0d12, 16, 42);
-const camera = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 0.1, 1000);
-const hemi = new THREE.HemisphereLight(0x8fb4ff, 0x10121a, 0.9); scene.add(hemi);
-const key = new THREE.DirectionalLight(0xffffff, 1.0); key.position.set(4, 8, 5); scene.add(key);
-const rim = new THREE.DirectionalLight(0x4fa8ff, 0.35); rim.position.set(-5, 4, -6); scene.add(rim);
-
-scene.add(new THREE.GridHelper(60, 60, 0x3a4156, 0x1a1e29));
-
-function makeShadowTexture(){
-  const size=128; const c=document.createElement('canvas'); c.width=c.height=size; const ctx=c.getContext('2d');
-  const g=ctx.createRadialGradient(size/2,size/2,0,size/2,size/2,size/2); g.addColorStop(0,'rgba(0,0,0,0.5)'); g.addColorStop(1,'rgba(0,0,0,0)');
-  ctx.fillStyle=g; ctx.fillRect(0,0,size,size); return new THREE.CanvasTexture(c);
-}
-const shadowMesh = new THREE.Mesh(new THREE.CircleGeometry(1.7, 32).rotateX(-Math.PI/2), new THREE.MeshBasicMaterial({ map:makeShadowTexture(), transparent:true, depthWrite:false }));
-shadowMesh.position.set(0, 0.01, 0); scene.add(shadowMesh);
-
-function createClassicFaceTexture() {
-  const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 256; const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#f4c752'; ctx.fillRect(0, 0, 256, 256); ctx.fillStyle = '#111111';
-  ctx.beginPath(); ctx.ellipse(85, 100, 11, 18, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(171, 100, 11, 18, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = '#111111'; ctx.lineWidth = 9; ctx.lineCap = 'round'; ctx.beginPath(); ctx.arc(128, 130, 42, 0.08 * Math.PI, 0.92 * Math.PI, false); ctx.stroke();
-  return new THREE.CanvasTexture(canvas);
-}
-
-const ONE = new THREE.Vector3(1,1,1);
-const partsMap = {};
-
-// Khởi tạo các part chính của R6
-const torsoMesh = new THREE.Mesh(new THREE.BoxGeometry(2,2,1), new THREE.MeshStandardMaterial({ color:0x2f6fcb, roughness:0.65, metalness:0.05 }));
-torsoMesh.matrixAutoUpdate = false; scene.add(torsoMesh);
-partsMap['Torso'] = { mesh:torsoMesh };
-
-// Khởi tạo các Part đỏ thay thế (Highlight Part Thừa)
-const ghostMat = new THREE.MeshBasicMaterial({ color: 0xff3b3b, transparent: true, opacity: 0.45, wireframe: false });
-const torsoGhost = new THREE.Mesh(new THREE.BoxGeometry(2.06, 2.06, 1.06), ghostMat);
-torsoGhost.matrixAutoUpdate = false; torsoGhost.visible = false; scene.add(torsoGhost);
-partsMap['Torso'].ghostMesh = torsoGhost;
-
-RIG_DEFS.forEach(def=>{
-  const geo = new THREE.BoxGeometry(def.size[0], def.size[1], def.size[2]); let mat;
-  if (def.name === 'Head') {
-    const defaultMat = new THREE.MeshStandardMaterial({ color:def.color, roughness:0.55, metalness:0.05 });
-    mat = [defaultMat, defaultMat, defaultMat, defaultMat, defaultMat, new THREE.MeshStandardMaterial({ map:createClassicFaceTexture(), roughness:0.55, metalness:0.05 })];
-  } else { mat = new THREE.MeshStandardMaterial({ color:def.color, roughness:0.55, metalness:0.05 }); }
-  const mesh = new THREE.Mesh(geo, mat); mesh.matrixAutoUpdate = false; scene.add(mesh);
-  
-  // Ghost part cảnh báo dư thừa dữ liệu
-  const gGeo = new THREE.BoxGeometry(def.size[0]+0.06, def.size[1]+0.06, def.size[2]+0.06);
-  const ghostMesh = new THREE.Mesh(gGeo, ghostMat); ghostMesh.matrixAutoUpdate = false; ghostMesh.visible = false; scene.add(ghostMesh);
-
-  partsMap[def.name] = { mesh, def, ghostMesh };
-});
-
-function composeMatrix(pos, quat){ return new THREE.Matrix4().compose(pos, quat, ONE); }
-
-// Thuật toán kiểm tra Keyframe thừa (Không thay đổi dữ liệu chuyển động)
-function checkIsRedundantFrame(partName, t) {
-  const f = state.framesByPart[partName]; if (!f || f.length <= 1) return false;
-  let idx = 0; for (let i = 0; i < f.length; i++) { if (f[i].t <= t) idx = i; else break; }
-  if (idx === 0) return false;
-  const cur = f[idx], prev = f[idx - 1];
-  return (cur.pos.distanceTo(prev.pos) < 0.005 && cur.quat.angleTo(prev.quat) < 0.005);
-}
-
-function updateRig(t){
-  let torsoWorld;
-  if (state.framesByPart['Torso']){
-    const s = sampleAt(state.framesByPart['Torso'], t); const poseM = composeMatrix(s.pos, s.quat);
-    torsoWorld = REST_TORSO.clone().multiply(ROOT_C0).multiply(poseM).multiply(ROOT_C1INV);
-    if (state.rootLock) {
-      const p = new THREE.Vector3(), q = new THREE.Quaternion(), sL = new THREE.Vector3();
-      torsoWorld.decompose(p, q, sL); p.x = 0; p.z = 0; torsoWorld.compose(p, q, sL);
-    }
-  } else { torsoWorld = REST_TORSO.clone(); }
-  torsoMesh.matrix.copy(torsoWorld);
-  
-  if(partsMap['Torso'].ghostMesh) {
-    partsMap['Torso'].ghostMesh.matrix.copy(torsoWorld);
-    partsMap['Torso'].ghostMesh.visible = state.highlightRedundant && checkIsRedundantFrame('Torso', t);
-  }
-
-  RIG_DEFS.forEach(def=>{
-    const frames = state.framesByPart[def.name]; const s = frames ? sampleAt(frames, t) : null;
-    const poseM = s ? composeMatrix(s.pos, s.quat) : new THREE.Matrix4();
-    const world = torsoWorld.clone().multiply(def.c0).multiply(poseM).multiply(def.c1inv);
-    partsMap[def.name].mesh.matrix.copy(world);
+  <div class="main-content">
+    <div id="viewport"></div>
     
-    if(partsMap[def.name].ghostMesh) {
-      partsMap[def.name].ghostMesh.matrix.copy(world);
-      partsMap[def.name].ghostMesh.visible = state.highlightRedundant && checkIsRedundantFrame(def.name, t);
-    }
-  });
-  const tp = new THREE.Vector3().setFromMatrixPosition(torsoWorld); shadowMesh.position.set(tp.x, 0.01, tp.z);
-}
+    <div class="timeline-container">
+      <div style="display:flex; justify-content: space-between; font-size: 12px;">
+        <span>Timeline Hoạt Ảnh</span>
+        <span id="frameCountLabel">Frames: 0 / 0</span>
+      </div>
+      <div class="timeline-slider-row">
+        <button class="btn" id="playBtn" style="min-width:60px; padding:5px;">▶ Play</button>
+        <input type="range" id="timeSlider" min="0" max="100" value="0" step="0.01">
+      </div>
+    </div>
+  </div>
 
-/* ---------------------------------------------------------------------
-   CAMERA SYSTEM
---------------------------------------------------------------------- */
-const cam = { target: new THREE.Vector3(0,3,0), theta: Math.PI*7/6, phi: 1.25, radius: 9, tTheta: Math.PI*7/6, tPhi: 1.25, tRadius: 9 };
-const MIN_R=3, MAX_R=40, MIN_PHI=0.15, MAX_PHI=Math.PI-0.15;
-const DEFAULT_CAM = { theta:Math.PI*7/6, phi:1.25, radius:9, target:new THREE.Vector3(0,3,0) };
-
-function positionCamera(){
-  cam.theta += (cam.tTheta-cam.theta)*0.2; cam.phi += (cam.tPhi-cam.phi)*0.2; cam.radius += (cam.tRadius-cam.radius)*0.2;
-  camera.position.set(cam.target.x + cam.radius*Math.sin(cam.phi)*Math.sin(cam.theta), cam.target.y + cam.radius*Math.cos(cam.phi), cam.target.z + cam.radius*Math.sin(cam.phi)*Math.cos(cam.theta));
-  camera.lookAt(cam.target);
-}
-function panByScreen(dx, dy){
-  const speed = cam.radius * 0.0016; const right = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0); const up = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 1);
-  cam.target.addScaledVector(right, -dx*speed); cam.target.addScaledVector(up, dy*speed);
-}
-
-const pointers = new Map(); let dragMode = null; let pinchDist = 0, pinchMid = {x:0,y:0};
-canvas.addEventListener('pointerdown', e=>{
-  canvas.setPointerCapture(e.pointerId); pointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
-  if (pointers.size === 1) dragMode = (e.pointerType==='mouse' && e.shiftKey) ? 'pan' : 'orbit';
-  else if (pointers.size === 2){
-    dragMode = 'pinch'; const pts=[...pointers.values()]; pinchDist = Math.hypot(pts[0].x-pts[1].x, pts[0].y-pts[1].y); pinchMid = {x:(pts[0].x+pts[1].x)/2, y:(pts[0].y+pts[1].y)/2};
-  }
-});
-canvas.addEventListener('pointermove', e=>{
-  if (!pointers.has(e.pointerId)) return; const prev = pointers.get(e.pointerId); const cur = {x:e.clientX, y:e.clientY}; pointers.set(e.pointerId, cur);
-  if (dragMode==='orbit' && pointers.size===1){ cam.tTheta -= (cur.x-prev.x)*0.0055; cam.tPhi = Math.max(MIN_PHI, Math.min(MAX_PHI, cam.tPhi - (cur.y-prev.y)*0.0055)); }
-  else if (dragMode==='pan' && pointers.size===1){ panByScreen(cur.x-prev.x, cur.y-prev.y); }
-  else if (dragMode==='pinch' && pointers.size===2){
-    const pts=[...pointers.values()]; const d = Math.hypot(pts[0].x-pts[1].x, pts[0].y-pts[1].y); const m = {x:(pts[0].x+pts[1].x)/2, y:(pts[0].y+pts[1].y)/2};
-    cam.tRadius = Math.max(MIN_R, Math.min(MAX_R, cam.tRadius * (pinchDist/d))); panByScreen(m.x-pinchMid.x, m.y-pinchMid.y); pinchDist = d; pinchMid = m;
-  }
-});
-function endPointer(e){ pointers.delete(e.pointerId); if (pointers.size===0) dragMode=null; else if (pointers.size===1) dragMode='orbit'; }
-canvas.addEventListener('pointerup', endPointer); canvas.addEventListener('pointercancel', endPointer);
-canvas.addEventListener('wheel', e=>{ e.preventDefault(); cam.tRadius = Math.max(MIN_R, Math.min(MAX_R, cam.tRadius * (1 + e.deltaY*0.001))); }, {passive:false});
-window.addEventListener('resize', ()=>{ camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
-
-/* ---------------------------------------------------------------------
-   APPLICATION STATE & CORE LOGIC
---------------------------------------------------------------------- */
-const state = { 
-  framesByPart: {}, originalFramesByPart: null, duration: 0, currentTime: 0, isPlaying: false, 
-  loop: true, speed: 1, rootLock: true, showTimeline: false, highlightRedundant: false,
-  currentFilename: 'exported_animation.lua', currentFpsMode: 'original'
-};
-const SPEEDS = [0.25, 0.5, 1, 2];
-
-const els = {
-  filename: document.getElementById('filename'), hint: document.getElementById('hint'), scrub: document.getElementById('scrub'),
-  curTime: document.getElementById('curTime'), totTime: document.getElementById('totTime'), playBtn: document.getElementById('playBtn'),
-  loopBtn: document.getElementById('loopBtn'), speedBtn: document.getElementById('speedBtn'), toast: document.getElementById('toast'),
-  dropOverlay: document.getElementById('dropOverlay'), infoPanel: document.getElementById('infoPanel'), infoBody: document.getElementById('infoBody'),
-  timelineContainer: document.getElementById('timelineContainer'), fpsSelect: document.getElementById('fpsSelect'), exportBtn: document.getElementById('exportBtn'),
-  settingBtn: document.getElementById('settingBtn'), slidingMenu: document.getElementById('slidingMenu'),
-  fpsMenuBtn: document.getElementById('fpsMenuBtn'), fpsMenu: document.getElementById('fpsMenu'),
-  tooltip: document.getElementById('customTooltip'), redundantBtn: document.getElementById('redundantBtn'),
-  exportModal: document.getElementById('exportModal'), exportNameInput: document.getElementById('exportNameInput'),
-  partCheckboxContainer: document.getElementById('partCheckboxContainer'),
-  confirmExportBtn: document.getElementById('confirmExportBtn'), cancelExportBtn: document.getElementById('cancelExportBtn')
-};
-
-function buildTimelineGUI(result) {
-  if (!result || state.duration <= 0) { els.timelineContainer.style.display = 'none'; els.timelineContainer.innerHTML = ''; return; }
-  els.timelineContainer.style.display = state.showTimeline ? 'block' : 'none';
-
-  let html = `<div style="position: relative; width:100%;"><div style="position: absolute; inset: 0; display: flex; pointer-events: none; z-index: 10;"><div style="width: 90px; flex-shrink: 0;"></div><div style="flex: 1; position: relative; height: 100%;"><div id="timelinePlayhead" style="position: absolute; top: 0; bottom: 0; width: 2px; background: var(--danger); left: 0%;"></div></div></div>`;
-  const allTracks = ['Torso', ...KNOWN_PART_NAMES.filter(n => n !== 'Torso')];
-  allTracks.forEach(name => {
-    if (!result.byPart[name]) return;
-    html += `<div class="timeline-row"><div class="track-name">${name}</div><div class="track-keyframes">`;
-    result.byPart[name].forEach(kf => { html += `<div class="kf-diamond" style="left: ${(kf.t / state.duration) * 100}%;"></div>`; });
-    html += `</div></div>`;
-  });
-  html += `</div>`; els.timelineContainer.innerHTML = html;
-}
-
-function updateTimelinePlayhead() {
-  const p = document.getElementById('timelinePlayhead'); if (p && state.duration > 0) p.style.left = (state.currentTime / state.duration) * 100 + '%';
-}
-
-function showToast(msg, isErr){
-  els.toast.textContent = msg; els.toast.classList.toggle('err', !!isErr); els.toast.classList.add('show');
-  clearTimeout(showToast._h); showToast._h = setTimeout(()=>els.toast.classList.remove('show'), 3200);
-}
-
-function updatePlayButton(){ els.playBtn.innerHTML = state.isPlaying ? '⏸ Pause' : '▶ Play'; }
-function updateScrubUI(){
-  els.scrub.value = state.duration>0 ? (state.currentTime/state.duration) : 0;
-  els.curTime.textContent = state.currentTime.toFixed(2)+'s'; els.totTime.textContent = state.duration.toFixed(2)+'s';
-  updateTimelinePlayhead();
-}
-
-function resampleAnimation(targetFps) {
-  if (state.duration <= 0 || !state.originalFramesByPart) return;
-  const dt = 1 / targetFps; const newByPart = {};
-  for (const partName in state.originalFramesByPart) {
-    const origFrames = state.originalFramesByPart[partName]; if (!origFrames || origFrames.length === 0) continue;
-    newByPart[partName] = []; let t = 0;
-    while (t < state.duration) { newByPart[partName].push({ t, ...sampleAt(origFrames, t) }); t += dt; }
-    newByPart[partName].push({ t: state.duration, ...sampleAt(origFrames, state.duration) });
-  }
-  state.framesByPart = newByPart; buildTimelineGUI({ byPart: state.framesByPart });
-  showToast(`Đã lấy mẫu nén về: ${targetFps} FPS`);
-}
-
-function applyFpsSetting(mode) {
-  if (mode === 'original') {
-    const newByPart = {};
-    for (const part in state.originalFramesByPart) { newByPart[part] = state.originalFramesByPart[part].map(kf => ({ ...kf })); }
-    state.framesByPart = newByPart; state.currentFpsMode = 'original'; buildTimelineGUI({ byPart: state.framesByPart });
-    showToast("Đã khôi phục dữ liệu mốc thời gian FPS gốc.");
-  } else { const fps = parseInt(mode); if (!isNaN(fps) && fps > 0) { resampleAnimation(fps); state.currentFpsMode = mode; } }
-}
-
-// Mở giao diện cấu hình Export nâng cao
-function openExportModal() {
-  if (!state.framesByPart || Object.keys(state.framesByPart).length === 0) { showToast("Không có dữ liệu trích xuất!", true); return; }
-  els.exportNameInput.value = state.currentFilename.replace(/\.[^/.]+$/, "") + "_optimized.lua";
-  
-  let checkboxHtml = '';
-  KNOWN_PART_NAMES.forEach(name => {
-    if (state.framesByPart[name]) {
-      checkboxHtml += `<label class="part-item"><input type="checkbox" name="exportParts" value="${name}" checked> ${name}</label>`;
-    }
-  });
-  els.partCheckboxContainer.innerHTML = checkboxHtml;
-  els.exportModal.style.display = 'flex';
-}
-
-function executeExport() {
-  const targetFilename = els.exportNameInput.value.trim() || 'animation.lua';
-  const checkedBoxes = document.querySelectorAll('input[name="exportParts"]:checked');
-  const activeParts = Array.from(checkedBoxes).map(cb => cb.value);
-
-  if (activeParts.length === 0) { alert("Vui lòng chọn ít nhất một Part để trích xuất dữ liệu!"); return; }
-
-  let output = `-- Cấu trúc hoạt ảnh xuất từ KFS Studio v2\n-- FPS Mode: ${state.currentFpsMode}\n`;
-  const allLines = [];
-
-  activeParts.forEach(partName => {
-    const frames = state.framesByPart[partName]; if (!frames) return;
-    frames.forEach(kf => {
-      const pos = kf.pos; const euler = new THREE.Euler().setFromQuaternion(kf.quat, 'XYZ');
-      const tStr = kf.t === 0 ? "0" : kf.t.toFixed(4).replace(/\.?0+$/, '');
-      const posStr = `${pos.x.toFixed(4).replace(/\.?0+$/, '')}, ${pos.y.toFixed(4).replace(/\.?0+$/, '')}, ${pos.z.toFixed(4).replace(/\.?0+$/, '')}`;
-      const angStr = `${euler.x.toFixed(4).replace(/\.?0+$/, '')}, ${euler.y.toFixed(4).replace(/\.?0+$/, '')}, ${euler.z.toFixed(4).replace(/\.?0+$/, '')}`;
-      allLines.push({ t: kf.t, text: `${tStr}s : ${partName} = CFrame.new(${posStr}) * CFrame.Angles(${angStr})` });
-    });
-  });
-
-  allLines.sort((a, b) => { if (Math.abs(a.t - b.t) < 1e-5) return a.text.localeCompare(b.text); return a.t - b.t; });
-  output += allLines.map(l => l.text).join("\n");
-
-  const blob = new Blob([output], { type: 'text/plain;charset=utf-8' }); const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url; a.download = targetFilename;
-  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
-  
-  els.exportModal.style.display = 'none';
-  showToast("Trích xuất tùy chọn Part hoàn tất!");
-}
-
-function applyImport(text, filename){
-  const result = parseKeyframeSequence(text); if (result.parsedCount === 0){ showToast('Lỗi đọc dữ liệu cấu trúc CFrame!', true); return; }
-  state.originalFramesByPart = result.byPart; state.duration = result.duration; state.currentTime = 0; state.isPlaying = true;
-  state.currentFilename = filename; state.currentFpsMode = 'original'; els.fpsSelect.value = 'original';
-
-  const cOpt = els.fpsSelect.querySelector('option[value="custom_active"]'); if(cOpt) cOpt.remove();
-  els.filename.textContent = filename; els.hint.style.display = 'none';
-  els.scrub.disabled = false; els.playBtn.disabled = false; els.fpsMenuBtn.disabled = false;
-
-  applyFpsSetting('original'); updatePlayButton(); updateScrubUI();
-}
-
-function clearAnimation(){
-  state.framesByPart = {}; state.originalFramesByPart = null; state.duration = 0; state.currentTime = 0; state.isPlaying = false;
-  els.filename.textContent = 'Chưa nhập file'; els.hint.style.display = ''; els.scrub.disabled = true; els.playBtn.disabled = true; els.fpsMenuBtn.disabled = true;
-  els.fpsMenu.classList.remove('open'); els.slidingMenu.classList.remove('open'); els.settingBtn.classList.remove('toggled'); els.fpsMenuBtn.classList.remove('toggled');
-  updatePlayButton(); updateScrubUI(); buildTimelineGUI(null);
-  KNOWN_PART_NAMES.forEach(n => { if(partsMap[n] && partsMap[n].ghostMesh) partsMap[n].ghostMesh.visible = false; });
-}
-
-/* ---------------------------------------------------------------------
-   UI INTERFACES & TOOLTIP FLYING LEFT
---------------------------------------------------------------------- */
-function initTooltipSystem(){
-  document.querySelectorAll('[data-title]').forEach(btn => {
-    let holdTimer = null;
-    const display = () => {
-      const txt = btn.getAttribute('data-title'); if (!txt) return;
-      els.tooltip.textContent = txt; const bound = btn.getBoundingClientRect();
-      els.tooltip.style.left = bound.left + 'px'; els.tooltip.style.top = (bound.top + bound.height / 2) + 'px';
-      els.tooltip.classList.add('show');
+  <script>
+    // --- KHỞI TẠO CẤU TRÚC TRẠNG THÁI HỆ THỐNG (STATE) ---
+    const state = {
+      keyframes: {},     // Cấu trúc: { time: { partName: { pos: [], rot: [] } } }
+      hierarchy: {},     // Định nghĩa cha-con cấu trúc: { childPart: parentPart }
+      timeline: [],      // Danh sách các mốc thời gian đã được sắp xếp
+      currentTime: 0,
+      isPlaying: false,
+      fps: 60,
+      maxTime: 0,
+      currentFilename: "Chưa đặt tên.lua"
     };
-    const dismiss = () => { clearTimeout(holdTimer); els.tooltip.classList.remove('show'); };
-    btn.addEventListener('mouseenter', display); btn.addEventListener('mouseleave', dismiss);
-    btn.addEventListener('pointerdown', () => { holdTimer = setTimeout(display, 200); });
-    btn.addEventListener('pointerup', dismiss); btn.addEventListener('pointerleave', dismiss); btn.addEventListener('click', dismiss);
-  });
-}
 
-// Xử lý đóng/mở xen kẽ các menu chui dọc
-els.settingBtn.addEventListener('click', () => {
-  const isOpen = els.slidingMenu.classList.toggle('open'); els.settingBtn.classList.toggle('toggled', isOpen);
-  if (isOpen) { els.fpsMenu.classList.remove('open'); els.fpsMenuBtn.classList.remove('toggled'); }
-});
-els.fpsMenuBtn.addEventListener('click', () => {
-  if (els.fpsMenuBtn.disabled) return;
-  const isOpen = els.fpsMenu.classList.toggle('open'); els.fpsMenuBtn.classList.toggle('toggled', isOpen);
-  if (isOpen) { els.slidingMenu.classList.remove('open'); els.settingBtn.classList.remove('toggled'); }
-});
+    // Quản lý các Mesh mô hình 3D
+    let scene, camera, renderer;
+    const rigParts = {}; 
+    const standardR6Parts = ['HumanoidRootPart', 'Torso', 'Head', 'Left Leg', 'Right Leg', 'Left Arm', 'Right Arm'];
 
-const fileInput = document.getElementById('fileInput');
-document.getElementById('importBtn').addEventListener('click', ()=>fileInput.click());
-fileInput.addEventListener('change', ()=>{
-  const f = fileInput.files[0]; if (!f) return;
-  const reader = new FileReader(); reader.onload = ()=>applyImport(reader.result, f.name); reader.readAsText(f); fileInput.value = '';
-});
+    // Biểu thức Regex bóc tách chuỗi CFrame từ file của bạn
+    const HIERARCHY_RE = /--\s*H:([\w_]+)=([\w_]+)/;
+    const KEYFRAME_RE = /([\d\.]+)s\s*:\s*([\w_]+)\s*=\s*CFrame\.new\((.*?)\)\s*\*\s*CFrame\.Angles\((.*?)\)/;
 
-window.addEventListener('dragover', e=>{ e.preventDefault(); els.dropOverlay.classList.add('show'); });
-window.addEventListener('dragleave', ()=>els.dropOverlay.classList.remove('show'));
-window.addEventListener('drop', e=>{
-  e.preventDefault(); els.dropOverlay.classList.remove('show');
-  const f = e.dataTransfer.files && e.dataTransfer.files[0]; if (!f) return;
-  const reader = new FileReader(); reader.onload = ()=>applyImport(reader.result, f.name); reader.readAsText(f);
-});
+    // --- KHỞI TẠO ĐỒ HỌA 3D (THREE.JS R6 RIG) ---
+    function init3D() {
+      const container = document.getElementById('viewport');
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x14141a);
 
-els.fpsSelect.addEventListener('change', (e) => {
-  const val = e.target.value;
-  if (val === 'custom') {
-    const customVal = prompt("Nhập số khung hình FPS thiết lập (1 - 120):", "24"); const parsed = parseInt(customVal);
-    if (!isNaN(parsed) && parsed > 0 && parsed <= 120) {
-      let cOpt = els.fpsSelect.querySelector('option[value="custom_active"]');
-      if (!cOpt) { cOpt = document.createElement('option'); cOpt.value = 'custom_active'; els.fpsSelect.insertBefore(cOpt, els.fpsSelect.lastElementChild); }
-      cOpt.textContent = `Tùy chỉnh (${parsed} FPS)`; els.fpsSelect.value = 'custom_active'; resampleAnimation(parsed); state.currentFpsMode = parsed;
-    } else { showToast("Số FPS không khả thi!", true); els.fpsSelect.value = state.currentFpsMode; }
-  } else { const cOpt = els.fpsSelect.querySelector('option[value="custom_active"]'); if (cOpt) cOpt.remove(); applyFpsSetting(val); }
-});
+      camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
+      camera.position.set(0, 3, 10);
 
-// THAY ĐỔI CỐT LÕI: Sửa việc tua Timeline cập nhật ngay lập tức khi Pause hoạt ảnh
-els.scrub.addEventListener('input', ()=>{
-  state.currentTime = parseFloat(els.scrub.value) * state.duration;
-  updateTimelinePlayhead();
-  updateScrubUI();
-  updateRig(state.currentTime); // Ép buộc đồ họa render lại tư thế mới ngay lập tức
-});
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(container.clientWidth, container.clientHeight);
+      container.appendChild(renderer.domElement);
 
-// Điều khiển nút Highlight Part dư thừa
-els.redundantBtn.addEventListener('click', (e)=>{
-  state.highlightRedundant = !state.highlightRedundant;
-  e.currentTarget.classList.toggle('toggled', state.highlightRedundant);
-  updateRig(state.currentTime);
-  showToast(state.highlightRedundant ? "Đã bật chế độ hiển thị Part để thế chỗ Keyframe thừa" : "Đã tắt chế độ Highlight");
-});
+      // Ánh sáng
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+      scene.add(ambientLight);
+      const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+      dirLight.position.set(10, 20, 15);
+      scene.add(dirLight);
 
-els.exportBtn.addEventListener('click', openExportModal);
-els.confirmExportBtn.addEventListener('click', executeExport);
-els.cancelExportBtn.addEventListener('click', () => els.exportModal.style.display = 'none');
+      // Mặt sàn tham chiếu lưới
+      const grid = new THREE.GridHelper(20, 20, 0x3e4452, 0x282c34);
+      grid.position.y = -2;
+      scene.add(grid);
 
-els.playBtn.addEventListener('click', ()=>{ if (state.duration<=0) return; if (!state.isPlaying && state.currentTime>=state.duration) state.currentTime=0; state.isPlaying = !state.isPlaying; updatePlayButton(); });
-els.loopBtn.addEventListener('click', ()=>{ state.loop = !state.loop; els.loopBtn.classList.toggle('toggled', state.loop); });
-els.speedBtn.addEventListener('click', ()=>{ state.speed = SPEEDS[(SPEEDS.indexOf(state.speed)+1)%SPEEDS.length]; els.speedBtn.textContent = state.speed+'×'; });
-document.getElementById('resetCamBtn').addEventListener('click', ()=>{ cam.tTheta = DEFAULT_CAM.theta; cam.tPhi = DEFAULT_CAM.phi; cam.tRadius = DEFAULT_CAM.radius; cam.target.copy(DEFAULT_CAM.target); });
-document.getElementById('timelineToggleBtn').addEventListener('click', e=>{ state.showTimeline = !state.showTimeline; e.currentTarget.classList.toggle('toggled', state.showTimeline); if (state.duration > 0) els.timelineContainer.style.display = state.showTimeline ? 'block' : 'none'; });
-document.getElementById('rootLockBtn').addEventListener('click', e=>{ state.rootLock = !state.rootLock; e.currentTarget.classList.toggle('toggled', state.rootLock); });
-document.getElementById('clearBtn').addEventListener('click', clearAnimation);
-document.getElementById('infoBtn').addEventListener('click', ()=>els.infoPanel.classList.add('open'));
-document.getElementById('closeInfoBtn').addEventListener('click', ()=>els.infoPanel.classList.remove('open'));
-window.addEventListener('keydown', e=>{ if (e.code==='Space' && state.duration>0){ e.preventDefault(); els.playBtn.click(); } });
+      buildBaseR6Rig();
 
-/* ---------------------------------------------------------------------
-   RENDER LOOP ENGINE
---------------------------------------------------------------------- */
-const clock = new THREE.Clock();
-function animate(){
-  requestAnimationFrame(animate); const dt = Math.min(clock.getDelta(), 0.05); positionCamera();
-  if (state.isPlaying && state.duration>0){
-    state.currentTime += dt*state.speed;
-    if (state.currentTime >= state.duration){
-      if (state.loop) state.currentTime %= state.duration;
-      else { state.currentTime = state.duration; state.isPlaying = false; updatePlayButton(); }
+      window.addEventListener('resize', () => {
+        camera.aspect = container.clientWidth / container.clientHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(container.clientWidth, container.clientHeight);
+      });
     }
-    updateScrubUI();
-  }
-  updateRig(state.currentTime); renderer.render(scene, camera);
-}
 
-cam.tTheta = DEFAULT_CAM.theta; cam.tPhi = DEFAULT_CAM.phi; cam.tRadius = DEFAULT_CAM.radius; cam.target.copy(DEFAULT_CAM.target);
-initTooltipSystem();
-animate();
-})();
-</script>
+    // Xây dựng khung xương Rig R6 chuẩn của Roblox mặc định ban đầu
+    function buildBaseR6Rig() {
+      // Hàm tạo nhanh một hình hộp vật lý 3D đại diện cho bộ phận
+      function createBox(w, h, d, color) {
+        const geo = new THREE.BoxGeometry(w, h, d);
+        const mat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.4 });
+        return new THREE.Mesh(geo, mat);
+      }
+
+      // Khởi tạo các bộ phận với kích thước chuẩn tỷ lệ tương đương Roblox nhân vật
+      rigParts['HumanoidRootPart'] = new THREE.Group(); // HRP tàng hình
+      scene.add(rigParts['HumanoidRootPart']);
+
+      rigParts['Torso'] = createBox(2, 2, 1, 0x3e4452);
+      rigParts['Torso'].position.set(0, 1, 0);
+      rigParts['HumanoidRootPart'].add(rigParts['Torso']);
+
+      rigParts['Head'] = createBox(1, 1, 1, 0xe06c75);
+      rigParts['Head'].position.set(0, 1.5, 0); // Vị trí tương đối so với Torso
+      rigParts['Torso'].add(rigParts['Head']);
+
+      rigParts['Left Arm'] = createBox(1, 2, 1, 0x61afef);
+      rigParts['Left Arm'].position.set(-1.5, 0, 0);
+      rigParts['Torso'].add(rigParts['Left Arm']);
+
+      rigParts['Right Arm'] = createBox(1, 2, 1, 0x61afef);
+      rigParts['Right Arm'].position.set(1.5, 0, 0);
+      rigParts['Torso'].add(rigParts['Right Arm']);
+
+      rigParts['Left Leg'] = createBox(1, 2, 1, 0x98c379);
+      rigParts['Left Leg'].position.set(-0.5, -2, 0);
+      rigParts['Torso'].add(rigParts['Left Leg']);
+
+      rigParts['Right Leg'] = createBox(1, 2, 1, 0x98c379);
+      rigParts['Right Leg'].position.set(0.5, -2, 0);
+      rigParts['Torso'].add(rigParts['Right Leg']);
+    }
+
+    // --- TIỆN ÍCH HIỂN THỊ TOAST ---
+    function showToast(msg, isError = false) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.style.background = isError ? 'var(--danger)' : 'var(--success)';
+      toast.style.color = isError ? '#fff' : '#1e222b';
+      toast.style.display = 'block';
+      setTimeout(() => { toast.style.display = 'none'; }, 3000);
+    }
+
+    // --- HÀM BÓC TÁCH PHÂN TÍCH FILE HOẠT ẢNH ---
+    function parseAnimationData(text) {
+      const lines = text.split('\n');
+      const keyframes = {};
+      const hierarchy = {};
+
+      for (let line of lines) {
+        line = line.trim();
+        if (!line) continue;
+
+        // 1. Quét tìm cây phả hệ phân cấp Motor6D nếu có dạng `-- H:Child=Parent`
+        const hierMatch = line.match(HIERARCHY_RE);
+        if (hierMatch) {
+          // Xử lý chuẩn hóa dấu gạch dưới thành dấu cách của cấu trúc Rig Roblox tiêu chuẩn
+          let child = hierMatch[1].replace(/_/g, ' ');
+          let parent = hierMatch[2].replace(/_/g, ' ');
+          hierarchy[child] = parent;
+          continue;
+        }
+
+        // 2. Quét trích xuất dữ liệu dòng di chuyển Keyframe
+        const kfMatch = line.match(KEYFRAME_RE);
+        if (kfMatch) {
+          const time = parseFloat(kfMatch[1]);
+          let partName = kfMatch[2].replace(/_/g, ' '); // Đổi "Left_Leg" thành "Left Leg" tự động
+
+          const posArr = kfMatch[3].split(',').map(Number);
+          const rotArr = kfMatch[4].split(',').map(Number);
+
+          if (!keyframes[time]) keyframes[time] = {};
+          keyframes[time][partName] = { pos: posArr, rot: rotArr };
+        }
+      }
+      return { keyframes, hierarchy };
+    }
+
+    // --- CẬP NHẬT PANEL THÔNG TIN CẤU TRÚC FILE ---
+    function updateInfoPanel() {
+      const infoBody = document.getElementById('infoBody');
+      if (state.timeline.length === 0) {
+        infoBody.innerHTML = `<i>File trống hoặc không đúng định dạng dữ liệu CFrame Roblox!</i>`;
+        return;
+      }
+
+      const duration = state.maxTime.toFixed(3);
+      const totalFrames = state.timeline.length;
+
+      // Tìm kiếm tất cả bộ phận xuất hiện trong hoạt ảnh này
+      const detectedParts = new Set();
+      for (let t of state.timeline) {
+        for (let p of Object.keys(state.keyframes[t])) {
+          detectedParts.add(p);
+        }
+      }
+      const partsList = Array.from(detectedParts);
+
+      // Tính toán FPS gần đúng của file gốc
+      let avgDelta = 0;
+      if (totalFrames > 1) {
+        let sum = 0;
+        for (let i = 1; i < totalFrames; i++) sum += (state.timeline[i] - state.timeline[i-1]);
+        avgDelta = sum / (totalFrames - 1);
+      }
+      const approxFps = avgDelta > 0 ? Math.round(1 / avgDelta) : 0;
+
+      infoBody.innerHTML = `
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          <div><b>Tên File:</b> <span style="color:var(--accent); font-family:monospace;">${state.currentFilename}</span></div>
+          <div><b>Thời Lượng:</b> <span style="color:var(--warning);">${duration} Giây</span></div>
+          <div><b>Tổng Keyframe:</b> <span style="color:var(--success);">${totalFrames} Điểm</span></div>
+          <div><b>FPS Gốc Ước Tính:</b> <span style="color:#d19a66;">${approxFps} Hz</span></div>
+          <div style="margin-top:4px;"><b>Bộ Phận Phát Hiện (${partsList.length}):</b></div>
+          <div style="display:flex; flex-wrap:wrap; gap:4px; max-height:100px; overflow-y:auto; background:#1e222b; padding:6px; border-radius:4px; border:1px solid #3e4452;">
+            ${partsList.map(p => {
+              const isCustom = !standardR6Parts.includes(p);
+              const color = isCustom ? '#d19a66' : '#e06c75';
+              const border = isCustom ? '1px dashed #d19a66' : 'none';
+              return `<span style="background:#2c313c; padding:1px 5px; border-radius:3px; font-size:11px; color:${color}; border:${border};">${p}</span>`;
+            }).join('')}
+          </div>
+        </div>
+      `;
+
+      document.getElementById('frameCountLabel').textContent = `Frames: 0 / ${totalFrames}`;
+      const slider = document.getElementById('timeSlider');
+      slider.max = state.maxTime;
+      slider.value = 0;
+    }
+
+    // --- CHỨC NĂNG CHÍNH ĐƯỢC YÊU CẦU: NÚT 🧱 TẠO PART THỪA TỰ ĐỘNG ---
+    function buildExtraParts() {
+      if (state.timeline.length === 0) {
+        showToast('Vui lòng nạp dữ liệu chuyển động vào trước!', true);
+        return;
+      }
+
+      // 1. Quét tìm toàn bộ bộ phận có trong Keyframe
+      const allPartsInFile = new Set();
+      for (let t of state.timeline) {
+        for (let p of Object.keys(state.keyframes[t])) {
+          allPartsInFile.add(p);
+        }
+      }
+
+      let createdCount = 0;
+
+      // 2. Lặp qua các bộ phận, nếu bộ phận nào nằm ngoài Rig R6 chuẩn thì sinh mã hình hộp mới
+      allPartsInFile.forEach(partName => {
+        if (!rigParts[partName]) {
+          // Tạo một hình hộp đại diện đặc biệt (màu Cam gỗ để phân biệt là phụ kiện/vũ khí thừa)
+          const geo = new THREE.BoxGeometry(0.3, 0.3, 1.2); // Thiết kế thuôn dài giống như Handle, Hammer, Kiếm, Súng
+          const mat = new THREE.MeshStandardMaterial({ 
+            color: 0xd19a66, 
+            roughness: 0.2, 
+            metalness: 0.5 
+          });
+          const customMesh = new THREE.Mesh(geo, mat);
+          
+          // Thêm một trục tọa độ mini để dễ quan sát hướng xoay của Part thừa
+          const axes = new THREE.AxesHelper(0.5);
+          customMesh.add(axes);
+
+          // Xác định đối tượng Cha để gắn nối dựa trên bảng Hierarchy phân cấp đã đọc từ Header file
+          let parentName = state.hierarchy[partName];
+          let parentMesh = null;
+
+          if (parentName && rigParts[parentName]) {
+            parentMesh = rigParts[parentName];
+          } else {
+            // Nếu không tìm thấy thông tin cha cụ thể (ví dụ Handle gắn vào Right_Arm), mặc định gắn tạm vào cánh tay phải hoặc Torso
+            if (partName.toLowerCase().includes('handle') || partName.toLowerCase().includes('hammer') || partName.toLowerCase().includes('ramrod')) {
+              parentMesh = rigParts['Right Arm']; 
+            } else {
+              parentMesh = rigParts['Torso'];
+            }
+          }
+
+          // Tiến hành liên kết Node cấu trúc lồng nhau trong không gian 3D
+          parentMesh.add(customMesh);
+          rigParts[partName] = customMesh;
+          createdCount++;
+        }
+      });
+
+      if (createdCount > 0) {
+        showToast(`🧱 Đã khởi tạo thành công ${createdCount} Part thừa vào mô hình Rig 3D!`);
+      } else {
+        showToast('Tất cả Part tùy biến đã được khởi tạo trước đó rồi!', false);
+      }
+    }
+
+    // --- THUẬT TOÁN NÉN KEYFRAME THÔNG MINH ---
+    function compressKeyframes(tolerance = 0.0005) {
+      if (state.timeline.length <= 2) {
+        showToast('Không đủ số lượng lượng frame để thực hiện nén tối ưu!', true);
+        return;
+      }
+
+      const originalCount = state.timeline.length;
+      const keepTimes = new Set();
+      
+      // Giữ nguyên điểm Frame đầu và điểm Frame cuối của chuỗi chuyển động
+      keepTimes.add(state.timeline[0]);
+      keepTimes.add(state.timeline[state.timeline.length - 1]);
+
+      let lastKeptIndex = 0;
+
+      for (let i = 1; i < state.timeline.length - 1; i++) {
+        const prevTime = state.timeline[lastKeptIndex];
+        const curTime = state.timeline[i];
+        const nextTime = state.timeline[i + 1];
+
+        const alpha = (curTime - prevTime) / (nextTime - prevTime);
+        let isRedundant = true;
+
+        const currentParts = Object.keys(state.keyframes[curTime] || {});
+
+        for (const part of currentParts) {
+          const pPrev = state.keyframes[prevTime]?.[part];
+          const pCur = state.keyframes[curTime]?.[part];
+          const pNext = state.keyframes[nextTime]?.[part];
+
+          if (!pCur) continue;
+          if (!pPrev || !pNext) { isRedundant = false; break; }
+
+          // Đo kiểm độ lệch sai số vị trí tịnh tiến (Position)
+          for (let j = 0; j < 3; j++) {
+            const interpPos = pPrev.pos[j] + alpha * (pNext.pos[j] - pPrev.pos[j]);
+            if (Math.abs(pCur.pos[j] - interpPos) > tolerance) { isRedundant = false; break; }
+          }
+          if (!isRedundant) break;
+
+          // Đo kiểm độ lệch sai số góc xoay (Rotation)
+          for (let j = 0; j < 3; j++) {
+            const interpRot = pPrev.rot[j] + alpha * (pNext.rot[j] - pPrev.rot[j]);
+            if (Math.abs(pCur.rot[j] - interpRot) > tolerance) { isRedundant = false; break; }
+          }
+          if (!isRedundant) break;
+        }
+
+        if (!isRedundant) {
+          keepTimes.add(curTime);
+          lastKeptIndex = i;
+        }
+      }
+
+      // Xây dựng lại kho lưu trữ Keyframe sau khi loại bỏ điểm thừa tuyến tính
+      const newKeyframes = {};
+      for (const t of state.timeline) {
+        if (keepTimes.has(t)) {
+          newKeyframes[t] = state.keyframes[t];
+        }
+      }
+
+      state.keyframes = newKeyframes;
+      state.timeline = Object.keys(newKeyframes).map(Number).sort((a, b) => a - b);
+      state.maxTime = state.timeline[state.timeline.length - 1] || 0;
+      state.currentTime = 0;
+
+      updateInfoPanel();
+      showToast(`Đã lọc sạch ${originalCount - state.timeline.length} frame thừa hoàn thành!`);
+    }
+
+    // --- HÀM CẬP NHẬT CHUYỂN ĐỘNG CỦA RIG THEO TIMELINE ---
+    function updateRigToTime(targetTime) {
+      if (state.timeline.length === 0) return;
+
+      // Tìm mốc thời gian Keyframe gần nhất hiện tại (Nearest-neighbor sampling)
+      let closestTime = state.timeline[0];
+      let diff = Math.abs(targetTime - closestTime);
+      
+      for (let t of state.timeline) {
+        let d = Math.abs(targetTime - t);
+        if (d < diff) {
+          diff = d;
+          closestTime = t;
+        }
+      }
+
+      // Đọc gói dữ liệu dịch chuyển tại Frame đó
+      const frameData = state.keyframes[closestTime];
+      if (!frameData) return;
+
+      // Áp đặt giá trị CFrame chuyển đổi lên từng Mesh trong Rig mô phỏng
+      for (let [partName, transform] of Object.entries(frameData)) {
+        const mesh = rigParts[partName];
+        if (mesh) {
+          // Áp dụng CFrame.new(x, y, z) nhân tỷ lệ phóng để mắt thường dễ nhìn trên Web
+          mesh.position.set(transform.pos[0] * 3, transform.pos[1] * 3, transform.pos[2] * -3);
+          
+          // Áp dụng CFrame.Angles(rx, ry, rz)
+          mesh.rotation.set(transform.rot[0], transform.rot[1], transform.rot[2]);
+        }
+      }
+
+      // Đồng bộ hiển thị giao diện người dùng
+      document.getElementById('timeDisplay').textContent = targetTime.toFixed(3) + 's';
+      const currentIdx = state.timeline.indexOf(closestTime);
+      document.getElementById('frameCountLabel').textContent = `Frames: ${currentIdx + 1} / ${state.timeline.length}`;
+    }
+
+    // --- VÒNG LẶP RENDER HOẠT ẢNH ---
+    let clock = new THREE.Clock();
+    function animate() {
+      requestAnimationFrame(animate);
+
+      if (state.isPlaying && state.timeline.length > 0) {
+        state.currentTime += clock.getDelta();
+        if (state.currentTime > state.maxTime) {
+          state.currentTime = 0; // Tự động lặp lại (Looping)
+        }
+        document.getElementById('timeSlider').value = state.currentTime;
+        updateRigToTime(state.currentTime);
+      } else {
+        clock.getDelta(); // Đốt thời gian delta thừa để tránh bị nhảy cóc lúc Pause rồi bật lại
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    // --- XUẤT NGƯỢC DỮ LIỆU ĐÃ XỬ LÝ RA FILE LUA ---
+    function exportLuaFile() {
+      if (state.timeline.length === 0) {
+        showToast('Không có dữ liệu nào để thực hiện xuất!', true);
+        return;
+      }
+
+      let out = `-- Biên tập & Nén thông minh hoàn tất\n`;
+      // Khôi phục lại phần Header cấu trúc phân cấp gốc
+      for (let [c, p] of Object.entries(state.hierarchy)) {
+        out += `-- H:${c.replace(/ /g, '_')}=${p.replace(/ /g, '_')}\n`;
+      }
+
+      // Khôi phục toàn bộ Keyframe dữ liệu chuyển động sạch
+      for (let t of state.timeline) {
+        const frameData = state.keyframes[t];
+        for (let [partName, tf] of Object.entries(frameData)) {
+          let luaPartName = partName.replace(/ /g, '_');
+          out += `${t.toFixed(3)}s : ${luaPartName} = CFrame.new(${tf.pos.join(',')}) * CFrame.Angles(${tf.rot.join(',')})\n`;
+        }
+      }
+
+      // Tạo lệnh tải xuống trực tiếp file text
+      const blob = new Blob([out], { type: 'text/plain' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `optimized_${state.currentFilename}`;
+      link.click();
+      showToast('Đã tải xuống file hoạt ảnh đã nén sạch! 🎉');
+    }
+
+    // --- THIẾT LẬP CÁC SỰ KIỆN CLICK VÀ EVENT LISTENERS TRÊN GIAO DIỆN ---
+    function setupEvents() {
+      // Sự kiện Nạp dữ liệu thô khi click nút Xử Lý Dữ Liệu
+      document.getElementById('loadBtn').addEventListener('click', () => {
+        const rawText = document.getElementById('luaInput').value;
+        if (!rawText.trim()) { showToast('Vui lòng nhập nội dung file .lua vào ô!', true); return; }
+        
+        const result = parseAnimationData(rawText);
+        state.keyframes = result.keyframes;
+        state.hierarchy = result.hierarchy;
+        state.timeline = Object.keys(state.keyframes).map(Number).sort((a, b) => a - b);
+        state.maxTime = state.timeline[state.timeline.length - 1] || 0;
+        state.currentTime = 0;
+
+        updateInfoPanel();
+        updateRigToTime(0);
+        showToast('Nạp dữ liệu Keyframe thành công!');
+      });
+
+      // Đọc file trực tiếp từ máy tính người dùng qua FilePicker
+      document.getElementById('filePicker').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        state.currentFilename = file.name;
+        
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+          document.getElementById('luaInput').value = evt.target.result;
+          document.getElementById('loadBtn').click();
+        };
+        reader.readAsText(file);
+      });
+
+      // Điều khiển thanh trượt kéo xả mốc thời gian hoạt ảnh
+      const slider = document.getElementById('timeSlider');
+      slider.addEventListener('input', (e) => {
+        state.currentTime = parseFloat(e.target.value);
+        updateRigToTime(state.currentTime);
+      });
+
+      // Nút Play / Pause hoạt ảnh phát thử nghiệm trực quan
+      document.getElementById('playBtn').addEventListener('click', (e) => {
+        state.isPlaying = !state.isPlaying;
+        e.target.textContent = state.isPlaying ? '⏸ Pause' : '▶ Play';
+        e.target.style.background = state.isPlaying ? 'var(--danger)' : '#3e4452';
+      });
+
+      // Cập nhật FPS cài đặt từ input
+      document.getElementById('fpsInput').addEventListener('change', (e) => {
+        state.fps = parseInt(e.target.value) || 60;
+      });
+
+      // Kích hoạt chức năng nén thông minh
+      document.getElementById('compressBtn').addEventListener('click', () => {
+        compressKeyframes(0.0005);
+      });
+
+      // Kích hoạt chức năng 🧱 Sinh khối bộ phận thừa tùy biến
+      document.getElementById('buildBrickBtn').addEventListener('click', () => {
+        buildExtraParts();
+      });
+
+      // Xuất file tải về máy
+      document.getElementById('exportBtn').addEventListener('click', exportLuaFile);
+    }
+
+    // --- KHỞI ĐỘNG HỆ THỐNG TOÀN DIỆN ---
+    window.onload = () => {
+      init3D();
+      setupEvents();
+      animate();
+    };
+  </script>
 </body>
 </html>
