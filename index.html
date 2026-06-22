@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>KFS Viewer — FPS Optimizer & Export</title>
+<title>KFS Viewer — Advanced UI</title>
 <style>
   :root{
     --bg:#0b0d12;
@@ -85,7 +85,6 @@
     border: 1px solid #000000;
   }
 
-  /* Giao diện thanh quản lý FPS & Xuất file */
   #fpsContainer {
     display: none; 
     align-items: center; 
@@ -111,20 +110,68 @@
   #curTime,#totTime{font:12px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; color:var(--text-dim);
     flex-shrink:0; min-width:52px; text-align:center;}
   #scrub{flex:1; accent-color:var(--accent); height:22px;}
-  #ctrlRow{display:flex; align-items:center; gap:8px; width:100%;}
+  
+  /* Cấu trúc thanh điều khiển cải tiến */
+  #ctrlRow{display:flex; align-items:center; gap:8px; width:100%; position: relative;}
   #ctrlRow .spacer{flex:1;}
+
+  /* Hiệu ứng trượt Menu Setting từ trái qua phải */
+  .setting-group {
+    display: flex;
+    align-items: center;
+    gap: 0;
+  }
+  .sliding-menu {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: max-width 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease, margin 0.35s ease;
+    margin-left: 0;
+  }
+  .sliding-menu.open {
+    max-width: 260px; /* Đủ không gian bung các nút phụ */
+    opacity: 1;
+    margin-left: 8px;
+  }
 
   button.btn{
     background:#1a1e29; border:1px solid var(--panel-border); color:var(--text);
     border-radius:10px; padding:9px 12px; font-size:13px; font-weight:600;
     display:flex; align-items:center; gap:6px; cursor:pointer; min-height:40px;
     transition:background .15s, border-color .15s, opacity .15s;
+    user-select: none; -webkit-user-select: none;
   }
   button.btn:active{background:#23283690;}
   button.btn:disabled{opacity:.4; cursor:default;}
   button.btn.primary{background:var(--accent); border-color:var(--accent); color:#0b0d12;}
-  button.btn.icon{width:40px; padding:0; justify-content:center;}
+  button.btn.icon{width:40px; padding:0; justify-content:center; flex-shrink: 0;}
   button.btn.toggled{border-color:var(--accent); color:var(--accent);}
+
+  /* Thiết kế Tooltip gợi ý khi hold/hover */
+  #customTooltip {
+    position: fixed;
+    background: rgba(11, 13, 18, 0.92);
+    color: var(--text);
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0;
+    transform: translate(-50%, -100%) scale(0.9);
+    transition: opacity 0.15s, transform 0.15s;
+    border: 1px solid var(--panel-border);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    white-space: nowrap;
+  }
+  #customTooltip.show {
+    opacity: 1;
+    transform: translate(-50%, -130%) scale(1);
+  }
 
   #hint{position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); z-index:4;
     text-align:center; color:var(--text-dim); font-size:14px; line-height:1.6; pointer-events:none;
@@ -178,6 +225,7 @@
 <div id="hint"><b>Chưa có dữ liệu</b><br>Kéo thả file <b>.lua (KFS)</b> hoặc file cấu trúc dạng text vào đây để chạy thử nghiệm.</div>
 <div id="dropOverlay">Thả file vào đây để nhập dữ liệu</div>
 <div id="toast"></div>
+<div id="customTooltip"></div>
 
 <div id="topbar" class="bar">
   <div class="left">
@@ -185,7 +233,7 @@
     <span id="filename">Chưa nhập file</span>
   </div>
   <div class="right">
-    <button class="btn icon" id="infoBtn" title="Thông tin parts">ⓘ</button>
+    <button class="btn icon" id="infoBtn" data-title="Thông tin chi tiết mã">ⓘ</button>
     <button class="btn primary" id="importBtn">📂 Nhập file</button>
   </div>
 </div>
@@ -211,16 +259,23 @@
     <input type="range" id="scrub" min="0" max="1" step="0.0005" value="0" disabled>
     <span id="totTime">0.00s</span>
   </div>
+  
   <div id="ctrlRow">
-    <button class="btn icon" id="resetCamBtn" title="Reset camera">⟲</button>
-    <button class="btn primary" id="playBtn" disabled>▶ Play</button>
-    <button class="btn toggled" id="loopBtn" title="Lặp lại">🔁 Loop</button>
-    <button class="btn" id="speedBtn" title="Tốc độ phát">1×</button>
+    <div class="setting-group">
+      <button class="btn icon" id="settingBtn" data-title="Cài đặt hệ thống">⚙️</button>
+      <div id="slidingMenu" class="sliding-menu">
+        <button class="btn icon" id="resetCamBtn" data-title="Đặt lại góc quay camera">⟲</button>
+        <button class="btn icon" id="timelineToggleBtn" data-title="Bật/Tắt Timeline kfs">🎬</button>
+        <button class="btn icon toggled" id="rootLockBtn" data-title="Khóa/Mở gốc Root Part">🔒</button>
+        <button class="btn icon toggled" id="dirBtn" data-title="Bật/Tắt mốc hướng F/B/L/R">🧭</button>
+        <button class="btn icon" id="clearBtn" data-title="Xóa sạch dữ liệu hoạt ảnh">🗑</button>
+      </div>
+    </div>
+
+    <button class="btn primary" id="playBtn" disabled data-title="Phát / Tạm dừng hoạt ảnh">▶ Play</button>
+    <button class="btn toggled" id="loopBtn" data-title="Bật/Tắt chế độ lặp lại">🔁 Loop</button>
+    <button class="btn" id="speedBtn" data-title="Thay đổi tốc độ phát hoạt ảnh">1×</button>
     <span class="spacer"></span>
-    <button class="btn icon" id="timelineToggleBtn" title="Hiện/ẩn thanh Timeline kfs">🎬</button>
-    <button class="btn icon toggled" id="rootLockBtn" title="Khóa vị trí gốc">🔒</button>
-    <button class="btn icon toggled" id="dirBtn" title="Hiện/ẩn mốc hướng">🧭</button>
-    <button class="btn icon" id="clearBtn" title="Xoá dữ liệu">🗑</button>
   </div>
 </div>
 
@@ -543,17 +598,16 @@ function endPointer(e){
 canvas.addEventListener('pointerup', endPointer);
 canvas.addEventListener('pointercancel', endPointer);
 canvas.addEventListener('wheel', e=>{ e.preventDefault(); cam.tRadius = Math.max(MIN_R, Math.min(MAX_R, cam.tRadius * (1 + e.deltaY*0.001))); }, {passive:false});
-document.getElementById('resetCamBtn').addEventListener('click', ()=>{ cam.tTheta = DEFAULT_CAM.theta; cam.tPhi = DEFAULT_CAM.phi; cam.tRadius = DEFAULT_CAM.radius; cam.target.copy(DEFAULT_CAM.target); });
 
 function onResize(){ camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); }
 window.addEventListener('resize', onResize); onResize();
 
 /* ---------------------------------------------------------------------
-   5) STATE & APP LOGIC (Tích hợp bộ nén & xuất file)
+   5) STATE & APP LOGIC
 --------------------------------------------------------------------- */
 const state = { 
   framesByPart: {}, 
-  originalFramesByPart: null, // Đệm lưu trữ keyframe gốc
+  originalFramesByPart: null, 
   duration: 0, 
   currentTime: 0, 
   isPlaying: false, 
@@ -572,7 +626,9 @@ const els = {
   loopBtn: document.getElementById('loopBtn'), speedBtn: document.getElementById('speedBtn'), toast: document.getElementById('toast'),
   dropOverlay: document.getElementById('dropOverlay'), infoPanel: document.getElementById('infoPanel'), infoBody: document.getElementById('infoBody'),
   timelineContainer: document.getElementById('timelineContainer'), fpsContainer: document.getElementById('fpsContainer'),
-  fpsSelect: document.getElementById('fpsSelect'), exportBtn: document.getElementById('exportBtn')
+  fpsSelect: document.getElementById('fpsSelect'), exportBtn: document.getElementById('exportBtn'),
+  settingBtn: document.getElementById('settingBtn'), slidingMenu: document.getElementById('slidingMenu'),
+  tooltip: document.getElementById('customTooltip')
 };
 
 function buildTimelineGUI(result) {
@@ -608,7 +664,6 @@ function updateScrubUI(){
   updateTimelinePlayhead();
 }
 
-/* Logic nén và nội suy Keyframes theo FPS chỉ định */
 function resampleAnimation(targetFps) {
   if (state.duration <= 0 || !state.originalFramesByPart) return;
   const dt = 1 / targetFps;
@@ -622,28 +677,15 @@ function resampleAnimation(targetFps) {
     let t = 0;
     while (t < state.duration) {
       const sampled = sampleAt(origFrames, t);
-      newByPart[partName].push({
-        t: t,
-        pos: sampled.pos.clone(),
-        quat: sampled.quat.clone()
-      });
+      newByPart[partName].push({ t, pos: sampled.pos.clone(), quat: sampled.quat.clone() });
       t += dt;
     }
 
-    // Đảm bảo bắt được chính xác mốc cuối của animation
     const sampledEnd = sampleAt(origFrames, state.duration);
     if (newByPart[partName].length > 0 && Math.abs(newByPart[partName][newByPart[partName].length - 1].t - state.duration) < 1e-4) {
-      newByPart[partName][newByPart[partName].length - 1] = {
-        t: state.duration,
-        pos: sampledEnd.pos.clone(),
-        quat: sampledEnd.quat.clone()
-      };
+      newByPart[partName][newByPart[partName].length - 1] = { t: state.duration, pos: sampledEnd.pos.clone(), quat: sampledEnd.quat.clone() };
     } else {
-      newByPart[partName].push({
-        t: state.duration,
-        pos: sampledEnd.pos.clone(),
-        quat: sampledEnd.quat.clone()
-      });
+      newByPart[partName].push({ t: state.duration, pos: sampledEnd.pos.clone(), quat: sampledEnd.quat.clone() });
     }
   }
 
@@ -656,9 +698,7 @@ function applyFpsSetting(mode) {
   if (mode === 'original') {
     const newByPart = {};
     for (const part in state.originalFramesByPart) {
-      newByPart[part] = state.originalFramesByPart[part].map(kf => ({
-        t: kf.t, pos: kf.pos.clone(), quat: kf.quat.clone()
-      }));
+      newByPart[part] = state.originalFramesByPart[part].map(kf => ({ t: kf.t, pos: kf.pos.clone(), quat: kf.quat.clone() }));
     }
     state.framesByPart = newByPart;
     state.currentFpsMode = 'original';
@@ -673,7 +713,6 @@ function applyFpsSetting(mode) {
   }
 }
 
-/* Logic đóng gói dữ liệu và Export file .lua */
 function exportKFS() {
   if (!state.framesByPart || Object.keys(state.framesByPart).length === 0) {
     showToast("Không tìm thấy dữ liệu để trích xuất!", true);
@@ -688,19 +727,14 @@ function exportKFS() {
     frames.forEach(kf => {
       const pos = kf.pos;
       const euler = new THREE.Euler().setFromQuaternion(kf.quat, 'XYZ');
-
       const tStr = kf.t === 0 ? "0" : kf.t.toFixed(4).replace(/\.?0+$/, '');
       const posStr = `${pos.x.toFixed(4).replace(/\.?0+$/, '')}, ${pos.y.toFixed(4).replace(/\.?0+$/, '')}, ${pos.z.toFixed(4).replace(/\.?0+$/, '')}`;
       const angStr = `${euler.x.toFixed(4).replace(/\.?0+$/, '')}, ${euler.y.toFixed(4).replace(/\.?0+$/, '')}, ${euler.z.toFixed(4).replace(/\.?0+$/, '')}`;
 
-      allLines.push({
-        t: kf.t,
-        text: `${tStr}s : ${partName} = CFrame.new(${posStr}) * CFrame.Angles(${angStr})`
-      });
+      allLines.push({ t: kf.t, text: `${tStr}s : ${partName} = CFrame.new(${posStr}) * CFrame.Angles(${angStr})` });
     });
   }
 
-  // Sắp xếp thứ tự thời gian tăng dần trước khi ghi file
   allLines.sort((a, b) => {
     if (Math.abs(a.t - b.t) < 1e-5) return a.text.localeCompare(b.text);
     return a.t - b.t;
@@ -708,25 +742,19 @@ function exportKFS() {
 
   output += allLines.map(l => l.text).join("\n");
 
-  // Tạo blob tải xuống
   const blob = new Blob([output], { type: 'text/plain;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
   a.download = state.currentFilename.replace(/\.[^/.]+$/, "") + "_fps.lua";
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
   showToast("Tải xuống file .lua hoàn tất!");
 }
 
 function applyImport(text, filename){
   const result = parseKeyframeSequence(text);
-  if (result.parsedCount === 0){
-    showToast('Không đọc được dòng pose hợp lệ nào từ file!', true);
-    return;
-  }
+  if (result.parsedCount === 0){ showToast('Không đọc được dòng pose hợp lệ nào!', true); return; }
   
   state.originalFramesByPart = result.byPart;
   state.duration = result.duration; 
@@ -735,7 +763,6 @@ function applyImport(text, filename){
   state.currentFilename = filename;
   state.currentFpsMode = 'original';
 
-  // Khôi phục bộ chọn về mặc định
   els.fpsSelect.value = 'original';
   const customActiveOpt = els.fpsSelect.querySelector('option[value="custom_active"]');
   if(customActiveOpt) customActiveOpt.remove();
@@ -744,7 +771,7 @@ function applyImport(text, filename){
   els.hint.style.display = 'none';
   els.scrub.disabled = false; 
   els.playBtn.disabled = false;
-  els.fpsContainer.style.display = 'flex'; // Hiện thanh nén FPS
+  els.fpsContainer.style.display = 'flex'; 
 
   applyFpsSetting('original');
   updatePlayButton(); 
@@ -753,31 +780,60 @@ function applyImport(text, filename){
 }
 
 function clearAnimation(){
-  state.framesByPart = {}; 
-  state.originalFramesByPart = null;
-  state.duration = 0; 
-  state.currentTime = 0; 
-  state.isPlaying = false;
-  els.filename.textContent = 'Chưa nhập file'; 
-  els.hint.style.display = '';
-  els.scrub.disabled = true; 
-  els.playBtn.disabled = true;
-  els.fpsContainer.style.display = 'none'; // Ẩn thanh nén FPS
-
-  updatePlayButton(); 
-  updateScrubUI(); 
-  buildTimelineGUI(null);
+  state.framesByPart = {}; state.originalFramesByPart = null; state.duration = 0; state.currentTime = 0; state.isPlaying = false;
+  els.filename.textContent = 'Chưa nhập file'; els.hint.style.display = ''; els.scrub.disabled = true; els.playBtn.disabled = true;
+  els.fpsContainer.style.display = 'none';
+  updatePlayButton(); updateScrubUI(); buildTimelineGUI(null);
 }
 
 /* ---------------------------------------------------------------------
-   6) UI EVENT LISTENERS
+   6) UI EVENT LISTENERS & HOLD TOOLTIP LOGIC
 --------------------------------------------------------------------- */
+// Thiết lập bộ quản lý Tooltip khi hover/giữ tay (Hold) trên Mobile
+function initTooltipSystem(){
+  document.querySelectorAll('[data-title]').forEach(btn => {
+    let holdTimer = null;
+
+    const display = () => {
+      const txt = btn.getAttribute('data-title');
+      if (!txt) return;
+      els.tooltip.textContent = txt;
+      const bound = btn.getBoundingClientRect();
+      els.tooltip.style.left = (bound.left + bound.width / 2) + 'px';
+      els.tooltip.style.top = bound.top + 'px';
+      els.tooltip.classList.add('show');
+    };
+
+    const dismiss = () => {
+      clearTimeout(holdTimer);
+      els.tooltip.classList.remove('show');
+    };
+
+    // Chuột trên PC
+    btn.addEventListener('mouseenter', display);
+    btn.addEventListener('mouseleave', dismiss);
+
+    // Chạm/Hold trên màn hình cảm ứng
+    btn.addEventListener('pointerdown', (e) => {
+      holdTimer = setTimeout(display, 250); // Nhấn giữ 250ms sẽ kích hoạt
+    });
+    btn.addEventListener('pointerup', dismiss);
+    btn.addEventListener('pointerleave', dismiss);
+    btn.addEventListener('click', dismiss);
+  });
+}
+
+// Bật/tắt mở rộng thanh cài đặt trượt tự trái qua phải
+els.settingBtn.addEventListener('click', (e) => {
+  const isOpen = els.slidingMenu.classList.toggle('open');
+  els.settingBtn.classList.toggle('toggled', isOpen);
+});
+
 const fileInput = document.getElementById('fileInput');
 document.getElementById('importBtn').addEventListener('click', ()=>fileInput.click());
 fileInput.addEventListener('change', ()=>{
   const f = fileInput.files[0]; if (!f) return;
-  const reader = new FileReader();
-  reader.onload = ()=>applyImport(reader.result, f.name);
+  const reader = new FileReader(); reader.onload = ()=>applyImport(reader.result, f.name);
   reader.readAsText(f); fileInput.value = '';
 });
 
@@ -786,32 +842,25 @@ window.addEventListener('dragleave', ()=>els.dropOverlay.classList.remove('show'
 window.addEventListener('drop', e=>{
   e.preventDefault(); els.dropOverlay.classList.remove('show');
   const f = e.dataTransfer.files && e.dataTransfer.files[0]; if (!f) return;
-  const reader = new FileReader();
-  reader.onload = ()=>applyImport(reader.result, f.name);
+  const reader = new FileReader(); reader.onload = ()=>applyImport(reader.result, f.name);
   reader.readAsText(f);
 });
 
-// Xử lý khi tùy biến FPS
 els.fpsSelect.addEventListener('change', (e) => {
   const val = e.target.value;
   if (val === 'custom') {
-    const customVal = prompt("Nhập số FPS bạn muốn đặt cho Animation (Ví dụ: 24, 20, 10):", "24");
+    const customVal = prompt("Nhập số FPS mong muốn (Ví dụ: 24, 20):", "24");
     const parsed = parseInt(customVal);
     if (!isNaN(parsed) && parsed > 0 && parsed <= 120) {
       let customOpt = els.fpsSelect.querySelector('option[value="custom_active"]');
       if (!customOpt) {
-        customOpt = document.createElement('option');
-        customOpt.value = 'custom_active';
+        customOpt = document.createElement('option'); customOpt.value = 'custom_active';
         els.fpsSelect.insertBefore(customOpt, els.fpsSelect.lastElementChild);
       }
-      customOpt.textContent = `Tùy chỉnh (${parsed} FPS)`;
-      els.fpsSelect.value = 'custom_active';
-      
-      resampleAnimation(parsed);
-      state.currentFpsMode = parsed;
+      customOpt.textContent = `Tùy chỉnh (${parsed} FPS)`; els.fpsSelect.value = 'custom_active';
+      resampleAnimation(parsed); state.currentFpsMode = parsed;
     } else {
-      showToast("Số FPS không hợp lệ (Phải từ 1 đến 120)!", true);
-      els.fpsSelect.value = state.currentFpsMode;
+      showToast("Số FPS không hợp lệ (Phải từ 1 đến 120)!", true); els.fpsSelect.value = state.currentFpsMode;
     }
   } else {
     const customOpt = els.fpsSelect.querySelector('option[value="custom_active"]');
@@ -821,11 +870,12 @@ els.fpsSelect.addEventListener('change', (e) => {
 });
 
 els.exportBtn.addEventListener('click', exportKFS);
-
 els.playBtn.addEventListener('click', ()=>{ if (state.duration<=0) return; if (!state.isPlaying && state.currentTime>=state.duration) state.currentTime=0; state.isPlaying = !state.isPlaying; updatePlayButton(); });
 els.loopBtn.addEventListener('click', ()=>{ state.loop = !state.loop; els.loopBtn.classList.toggle('toggled', state.loop); });
 els.speedBtn.addEventListener('click', ()=>{ state.speed = SPEEDS[(SPEEDS.indexOf(state.speed)+1)%SPEEDS.length]; els.speedBtn.textContent = state.speed+'×'; });
 els.scrub.addEventListener('input', ()=>{ state.currentTime = parseFloat(els.scrub.value) * state.duration; updateTimelinePlayhead(); });
+
+document.getElementById('resetCamBtn').addEventListener('click', ()=>{ cam.tTheta = DEFAULT_CAM.theta; cam.tPhi = DEFAULT_CAM.phi; cam.tRadius = DEFAULT_CAM.radius; cam.target.copy(DEFAULT_CAM.target); });
 document.getElementById('timelineToggleBtn').addEventListener('click', e=>{ state.showTimeline = !state.showTimeline; e.currentTarget.classList.toggle('toggled', state.showTimeline); if (state.duration > 0) els.timelineContainer.style.display = state.showTimeline ? 'block' : 'none'; });
 document.getElementById('rootLockBtn').addEventListener('click', e=>{ state.rootLock = !state.rootLock; e.currentTarget.classList.toggle('toggled', state.rootLock); });
 document.getElementById('clearBtn').addEventListener('click', clearAnimation);
@@ -853,6 +903,9 @@ function animate(){
   updateRig(state.currentTime);
   renderer.render(scene, camera);
 }
+// Khởi chạy hệ thống và gán nhãn hold danh mục
+cam.tTheta = DEFAULT_CAM.theta; cam.tPhi = DEFAULT_CAM.phi; cam.tRadius = DEFAULT_CAM.radius; cam.target.copy(DEFAULT_CAM.target);
+initTooltipSystem();
 animate();
 })();
 </script>
