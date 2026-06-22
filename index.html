@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>KFS Viewer — Advanced Vertical UI</title>
+<title>KFS Studio Viewer — Core Upgrade</title>
 <style>
   :root{
     --bg:#0b0d12;
@@ -13,6 +13,7 @@
     --text-dim:#8b91a3;
     --accent:#4fa8ff;
     --danger:#ff5c5c;
+    --warn:#ff9f43;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   html,body{margin:0; height:100%; background:var(--bg); overflow:hidden;
@@ -36,53 +37,21 @@
     border-top:1px solid var(--panel-border);}
   
   #timelineContainer {
-    width: 100%;
-    background: #0d1017;
-    border: 1px solid var(--panel-border);
-    border-radius: 8px;
-    margin-bottom: 4px;
-    overflow: hidden;
-    display: none;
-    max-height: 140px;
-    overflow-y: auto;
+    width: 100%; background: #0d1017; border: 1px solid var(--panel-border);
+    border-radius: 8px; margin-bottom: 4px; overflow: hidden; display: none;
+    max-height: 140px; overflow-y: auto;
   }
-  .timeline-row {
-    display: flex;
-    align-items: center;
-    border-bottom: 1px solid #1a1e29;
-    height: 24px;
-  }
+  .timeline-row { display: flex; align-items: center; border-bottom: 1px solid #1a1e29; height: 24px; }
   .timeline-row:last-child { border-bottom: none; }
   .track-name {
-    width: 90px;
-    font-size: 11px;
-    color: var(--text-dim);
-    padding-left: 8px;
-    font-weight: 600;
-    border-right: 1px solid var(--panel-border);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    background: #121620;
-    height: 100%;
-    display: flex;
-    align-items: center;
+    width: 90px; font-size: 11px; color: var(--text-dim); padding-left: 8px; font-weight: 600;
+    border-right: 1px solid var(--panel-border); white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis; background: #121620; height: 100%; display: flex; align-items: center;
   }
-  .track-keyframes {
-    flex: 1;
-    position: relative;
-    height: 100%;
-    background: #080a0f;
-  }
+  .track-keyframes { flex: 1; position: relative; height: 100%; background: #080a0f; }
   .kf-diamond {
-    position: absolute;
-    top: 50%;
-    transform: translate(-50%, -50%) rotate(45deg);
-    width: 7px;
-    height: 7px;
-    background: var(--accent);
-    box-shadow: 0 0 4px var(--accent);
-    border: 1px solid #000000;
+    position: absolute; top: 50%; transform: translate(-50%, -50%) rotate(45deg);
+    width: 7px; height: 7px; background: var(--accent); box-shadow: 0 0 4px var(--accent); border: 1px solid #000000;
   }
 
   #scrubRow{display:flex; align-items:center; gap:10px; width:100%;}
@@ -93,46 +62,20 @@
   #ctrlRow{display:flex; align-items:center; gap:8px; width:100%; position: relative;}
   #ctrlRow .spacer{flex:1;}
 
-  /* cấu trúc POP-UP dọc chui từ dưới lên */
-  .menu-group {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
+  /* MENU POP-UP DỌC CHUI TỪ DƯỚI LÊN */
+  .menu-group { position: relative; display: flex; flex-direction: column; align-items: center; }
   .vertical-menu {
-    position: absolute;
-    bottom: 100%;
-    right: 0; /* Canh lề phải sát góc để không tràn màn hình thiết bị */
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    opacity: 0;
-    pointer-events: none;
-    transform: translateY(15px);
+    position: absolute; bottom: 100%; right: 0; display: flex; flex-direction: column; gap: 8px;
+    opacity: 0; pointer-events: none; transform: translateY(15px);
     transition: opacity 0.22s cubic-bezier(0.4, 0, 0.2, 1), transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
-    margin-bottom: 10px;
-    align-items: flex-end;
+    margin-bottom: 10px; align-items: flex-end;
   }
-  .vertical-menu.open {
-    opacity: 1;
-    pointer-events: auto;
-    transform: translateY(0);
-  }
+  .vertical-menu.open { opacity: 1; pointer-events: auto; transform: translateY(0); }
 
   #fpsSelect {
-    background: #1a1e29;
-    border: 1px solid var(--panel-border);
-    color: var(--text);
-    border-radius: 10px;
-    padding: 9px 12px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    outline: none;
-    width: 140px;
-    text-align: center;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    background: #1a1e29; border: 1px solid var(--panel-border); color: var(--text);
+    border-radius: 10px; padding: 9px 12px; font-size: 13px; font-weight: 600;
+    cursor: pointer; outline: none; width: 140px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
   }
 
   button.btn{
@@ -140,8 +83,7 @@
     border-radius:10px; padding:9px 12px; font-size:13px; font-weight:600;
     display:flex; align-items:center; gap:6px; cursor:pointer; min-height:40px;
     transition:background .15s, border-color .15s, opacity .15s;
-    user-select: none; -webkit-user-select: none;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    user-select: none; -webkit-user-select: none; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
   }
   button.btn:active{background:#23283690;}
   button.btn:disabled{opacity:.3; cursor:default; pointer-events: none;}
@@ -149,39 +91,51 @@
   button.btn.icon{width:40px; padding:0; justify-content:center; flex-shrink: 0;}
   button.btn.toggled{border-color:var(--accent); color:var(--accent);}
 
-  /* Giao diện Tooltip hiển thị khi hold */
+  /* CHỈNH TOOLTIP CHUI RA PHÍA BÊN TRÁI CỦA NÚT */
   #customTooltip {
-    position: fixed;
-    background: rgba(11, 13, 18, 0.94);
-    color: var(--text);
-    padding: 6px 10px;
-    border-radius: 6px;
-    font-size: 11px;
-    font-weight: 600;
-    pointer-events: none;
-    z-index: 9999;
-    opacity: 0;
-    transform: translate(-50%, -100%) scale(0.9);
-    transition: opacity 0.12s, transform 0.12s;
-    border: 1px solid var(--panel-border);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.6);
-    white-space: nowrap;
+    position: fixed; background: rgba(11, 13, 18, 0.95); color: var(--text);
+    padding: 6px 12px; border-radius: 6px; font-size: 11px; font-weight: 600;
+    pointer-events: none; z-index: 9999; opacity: 0;
+    border: 1px solid var(--panel-border); box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+    white-space: nowrap; transition: opacity 0.15s cubic-bezier(0.4, 0, 0.2, 1), transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    transform: translate(calc(-100% - 14px), -50%) scale(0.92);
   }
   #customTooltip.show {
-    opacity: 1;
-    transform: translate(-50%, -130%) scale(1);
+    opacity: 1; transform: translate(calc(-100% - 8px), -50%) scale(1);
   }
 
+  /* MODAL EXPORT TÙY CHỌN CAO CẤP */
+  #exportModal {
+    position: fixed; inset: 0; z-index: 100; background: rgba(5,6,8,0.8);
+    backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
+    display: none; align-items: center; justify-content: center;
+  }
+  .modal-content {
+    background: #13161f; border: 1px solid var(--panel-border); padding: 20px;
+    border-radius: 14px; width: 350px; max-width: 90vw; display: flex; flex-direction: column; gap: 14px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  }
+  .modal-content h3 { margin: 0; font-size: 15px; color: var(--text); font-weight: 700; }
+  .modal-field { display: flex; flex-direction: column; gap: 5px; }
+  .modal-field label { font-size: 12px; color: var(--text-dim); }
+  .modal-input {
+    background: #090b0f; border: 1px solid var(--panel-border); color: var(--text);
+    padding: 8px 12px; border-radius: 8px; font-size: 13px; outline: none; width: 100%;
+  }
+  .modal-input:focus { border-color: var(--accent); }
+  .part-selector-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 6px; background: #090b0f;
+    padding: 10px; border-radius: 8px; border: 1px solid var(--panel-border); max-height: 120px; overflow-y: auto;
+  }
+  .part-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text); cursor: pointer; }
+  .part-item input { accent-color: var(--accent); cursor: pointer; }
+
   #hint{position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); z-index:4;
-    text-align:center; color:var(--text-dim); font-size:14px; line-height:1.6; pointer-events:none;
-    max-width:320px;}
+    text-align:center; color:var(--text-dim); font-size:14px; line-height:1.6; pointer-events:none; max-width:320px;}
   #hint b{color:var(--text);}
-
   #dropOverlay{position:fixed; inset:0; z-index:8; background:rgba(79,168,255,0.12);
-    border:3px dashed var(--accent); display:none; align-items:center; justify-content:center;
-    font-size:16px; font-weight:700; color:var(--accent);}
+    border:3px dashed var(--accent); display:none; align-items:center; justify-content:center; font-size:16px; font-weight:700; color:var(--accent);}
   #dropOverlay.show{display:flex;}
-
   #toast{position:fixed; top:64px; left:50%; transform:translateX(-50%) translateY(-12px);
     background:#161a24; border:1px solid var(--panel-border); color:var(--text);
     padding:10px 16px; border-radius:10px; font-size:13px; z-index:9; opacity:0; pointer-events:none;
@@ -192,15 +146,12 @@
   #infoPanel{position:fixed; top:0; right:0; bottom:0; width:300px; max-width:84vw; z-index:7;
     background:var(--panel); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
     border-left:1px solid var(--panel-border); transform:translateX(100%);
-    transition:transform .25s ease; padding:calc(56px + env(safe-area-inset-top)) 16px 16px 16px;
-    overflow-y:auto; font-size:13px;}
+    transition:transform .25s ease; padding:calc(56px + env(safe-area-inset-top)) 16px 16px 16px; overflow-y:auto; font-size:13px;}
   #infoPanel.open{transform:translateX(0);}
-  #infoPanel h3{font-size:13px; text-transform:uppercase; letter-spacing:.6px; color:var(--text-dim);
-    margin:18px 0 8px;}
+  #infoPanel h3{font-size:13px; text-transform:uppercase; letter-spacing:.6px; color:var(--text-dim); margin:18px 0 8px;}
   #infoPanel h3:first-of-type{margin-top:0;}
   #infoPanel ul{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px;}
-  #infoPanel li{display:flex; justify-content:space-between; gap:8px; padding:6px 8px;
-    background:#161a24; border-radius:7px;}
+  #infoPanel li{display:flex; justify-content:space-between; gap:8px; padding:6px 8px; background:#161a24; border-radius:7px;}
   #infoPanel li .n{color:var(--text);}
   #infoPanel li .c{color:var(--text-dim); font:12px ui-monospace,monospace;}
   #infoPanel .empty{color:var(--text-dim); font-size:12px;}
@@ -209,12 +160,7 @@
   #infoPanel .closeRow b{font-size:14px;}
 
   input[type=file]{display:none;}
-
-  @media (max-width:420px){
-    #brand{display:none;}
-    #filename{max-width:42vw;}
-    button.btn{padding:8px 10px; font-size:12px;}
-  }
+  @media (max-width:420px){ #brand{display:none;} #filename{max-width:42vw;} button.btn{padding:8px 10px; font-size:12px;} }
 </style>
 </head>
 <body>
@@ -225,6 +171,24 @@
 <div id="dropOverlay">Thả file vào đây để nhập dữ liệu</div>
 <div id="toast"></div>
 <div id="customTooltip"></div>
+
+<div id="exportModal">
+  <div class="modal-content">
+    <h3>Tùy chọn trích xuất file (.lua)</h3>
+    <div class="modal-field">
+      <label for="exportNameInput">Tên cấu trúc file lưu trữ:</label>
+      <input type="text" id="exportNameInput" class="modal-input" placeholder="animation_backup.lua">
+    </div>
+    <div class="modal-field">
+      <label>Chọn các Part muốn giữ lại khi Export:</label>
+      <div id="partCheckboxContainer" class="part-selector-grid"></div>
+    </div>
+    <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:4px;">
+      <button class="btn" id="cancelExportBtn">Hủy bỏ</button>
+      <button class="btn primary" id="confirmExportBtn">Xác nhận Lưu</button>
+    </div>
+  </div>
+</div>
 
 <div id="topbar" class="bar">
   <div class="left">
@@ -256,16 +220,16 @@
     <div class="menu-group">
       <div id="fpsMenu" class="vertical-menu">
         <select id="fpsSelect">
-          <option value="original">Gốc (Không nén)</option>
+          <option value="original">FPS (Gốc)</option>
           <option value="60">60 FPS</option>
           <option value="45">45 FPS</option>
           <option value="30">30 FPS</option>
           <option value="15">15 FPS</option>
           <option value="custom">Tùy chỉnh...</option>
         </select>
-        <button class="btn primary" id="exportBtn" style="width:140px; justify-content:center;" data-title="Tải xuống file .lua hoàn chỉnh">📥 Export .lua</button>
+        <button class="btn primary" id="exportBtn" style="width:140px; justify-content:center;" data-title="Cấu hình tùy chọn & Xuất .lua">📥 Export .lua</button>
       </div>
-      <button class="btn icon" id="fpsMenuBtn" disabled data-title="Cấu hình FPS & Xuất bản">💾</button>
+      <button class="btn icon" id="fpsMenuBtn" disabled data-title="Tối ưu hóa & Đổi FPS">♻️</button>
     </div>
 
     <div class="menu-group">
@@ -273,7 +237,7 @@
         <button class="btn icon" id="resetCamBtn" data-title="Đặt lại góc quay camera">⟲</button>
         <button class="btn icon" id="timelineToggleBtn" data-title="Bật/Tắt Timeline kfs">🎬</button>
         <button class="btn icon toggled" id="rootLockBtn" data-title="Khóa/Mở gốc Root Part">🔒</button>
-        <button class="btn icon toggled" id="dirBtn" data-title="Bật/Tắt mốc hướng F/B/L/R">🧭</button>
+        <button class="btn icon" id="redundantBtn" data-title="Highlight / Part chứa Keyframe thừa">🧱</button>
         <button class="btn icon" id="clearBtn" data-title="Xóa sạch dữ liệu hoạt ảnh">🗑</button>
       </div>
       <button class="btn icon" id="settingBtn" data-title="Cài đặt hệ thống tiện ích">⚙️</button>
@@ -294,14 +258,10 @@
 (function(){
 "use strict";
 
-/* ---------------------------------------------------------------------
-   1) RIG DEFINITION (R6 Khối hộp tiêu chuẩn)
---------------------------------------------------------------------- */
 function CF(x, y, z, rx = 0, ry = 0, rz = 0) {
   const m = new THREE.Matrix4().makeTranslation(x, y, z);
   const euler = new THREE.Euler(rx, ry, rz, 'XYZ'); 
-  const rot = new THREE.Matrix4().makeRotationFromEuler(euler);
-  return m.multiply(rot);
+  return m.multiply(new THREE.Matrix4().makeRotationFromEuler(euler));
 }
 
 const REST_TORSO = CF(0, 3, 0); 
@@ -317,23 +277,15 @@ const RIG_DEFS = [
 ];
 const KNOWN_PART_NAMES = ['Torso','Head','Right Arm','Left Arm','Right Leg','Left Leg'];
 
-/* ---------------------------------------------------------------------
-   2) PARSER SYSTEM
---------------------------------------------------------------------- */
 const LINE_RE = /^([\d.eE+\-]+)s\s*:\s*([^=]+?)\s*=\s*CFrame\.new\(([^)]*)\)\s*\*\s*CFrame\.Angles\(([^)]*)\)/;
 
 function parseKeyframeSequence(text){
-  const byPart = {};
-  let parsedCount = 0, totalNonEmpty = 0;
+  const byPart = {}; let parsedCount = 0, totalNonEmpty = 0;
   const lines = text.split(/\r?\n/);
   for (let raw of lines){
-    const line = raw.trim();
-    if (!line || line.startsWith('--')) continue;
-    totalNonEmpty++;
-    const m = line.match(LINE_RE);
-    if (!m) continue;
-    const t = parseFloat(m[1]);
-    const name = m[2].trim();
+    const line = raw.trim(); if (!line || line.startsWith('--')) continue; totalNonEmpty++;
+    const m = line.match(LINE_RE); if (!m) continue;
+    const t = parseFloat(m[1]); const name = m[2].trim();
     const pos = m[3].split(',').map(s=>parseFloat(s.trim()));
     const ang = m[4].split(',').map(s=>parseFloat(s.trim()));
     if (isNaN(t) || pos.length<3 || ang.length<3 || pos.some(isNaN) || ang.some(isNaN)) continue;
@@ -343,139 +295,131 @@ function parseKeyframeSequence(text){
     const vpos = new THREE.Vector3(pos[0], pos[1], pos[2]);
 
     if (!byPart[name]) byPart[name] = [];
-    byPart[name].push({ t, pos:vpos, quat });
-    parsedCount++;
+    byPart[name].push({ t, pos:vpos, quat }); parsedCount++;
   }
   for (const k in byPart) byPart[k].sort((a,b)=>a.t-b.t);
   let duration = 0;
-  for (const k in byPart){
-    const arr = byPart[k];
-    if (arr.length) duration = Math.max(duration, arr[arr.length-1].t);
-  }
+  for (const k in byPart){ const arr = byPart[k]; if (arr.length) duration = Math.max(duration, arr[arr.length-1].t); }
   return { byPart, duration, parsedCount, totalNonEmpty };
 }
 
 function sampleAt(frames, t){
   if (!frames || frames.length === 0) return null;
   if (t <= frames[0].t) return frames[0];
-  const last = frames[frames.length-1];
-  if (t >= last.t) return last;
+  const last = frames[frames.length-1]; if (t >= last.t) return last;
   let lo=0, hi=frames.length-1;
-  while (hi-lo>1){
-    const mid=(lo+hi)>>1;
-    if (frames[mid].t <= t) lo=mid; else hi=mid;
-  }
-  const a=frames[lo], b=frames[hi];
-  const span = (b.t-a.t) || 1e-6;
-  const alpha = (t-a.t)/span;
-  return {
-    pos: a.pos.clone().lerp(b.pos, alpha),
-    quat: a.quat.clone().slerp(b.quat, alpha)
-  };
+  while (hi-lo>1){ const mid=(lo+hi)>>1; if (frames[mid].t <= t) lo=mid; else hi=mid; }
+  const a=frames[lo], b=frames[hi]; const span = (b.t-a.t) || 1e-6; const alpha = (t-a.t)/span;
+  return { pos: a.pos.clone().lerp(b.pos, alpha), quat: a.quat.clone().slerp(b.quat, alpha) };
 }
 
 /* ---------------------------------------------------------------------
-   3) THREE.JS GRAPHICS
+   THREE.JS ENGINE & INTERACTIVE RIG SETUP
 --------------------------------------------------------------------- */
 const canvas = document.getElementById('viewport');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+renderer.setSize(innerWidth, innerHeight);
 renderer.outputEncoding = THREE.sRGBEncoding;
 
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0b0d12);
-scene.fog = new THREE.Fog(0x0b0d12, 16, 42);
-
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x0b0d12); scene.fog = new THREE.Fog(0x0b0d12, 16, 42);
 const camera = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 0.1, 1000);
 const hemi = new THREE.HemisphereLight(0x8fb4ff, 0x10121a, 0.9); scene.add(hemi);
 const key = new THREE.DirectionalLight(0xffffff, 1.0); key.position.set(4, 8, 5); scene.add(key);
 const rim = new THREE.DirectionalLight(0x4fa8ff, 0.35); rim.position.set(-5, 4, -6); scene.add(rim);
 
-const grid = new THREE.GridHelper(60, 60, 0x3a4156, 0x1a1e29); scene.add(grid);
+scene.add(new THREE.GridHelper(60, 60, 0x3a4156, 0x1a1e29));
 
 function makeShadowTexture(){
-  const size=128; const c=document.createElement('canvas'); c.width=c.height=size;
-  const ctx=c.getContext('2d'); const g=ctx.createRadialGradient(size/2,size/2,0,size/2,size/2,size/2);
-  g.addColorStop(0,'rgba(0,0,0,0.5)'); g.addColorStop(1,'rgba(0,0,0,0)');
+  const size=128; const c=document.createElement('canvas'); c.width=c.height=size; const ctx=c.getContext('2d');
+  const g=ctx.createRadialGradient(size/2,size/2,0,size/2,size/2,size/2); g.addColorStop(0,'rgba(0,0,0,0.5)'); g.addColorStop(1,'rgba(0,0,0,0)');
   ctx.fillStyle=g; ctx.fillRect(0,0,size,size); return new THREE.CanvasTexture(c);
 }
-const shadowGeo = new THREE.CircleGeometry(1.7, 32).rotateX(-Math.PI/2);
-const shadowMat = new THREE.MeshBasicMaterial({ map:makeShadowTexture(), transparent:true, depthWrite:false });
-const shadowMesh = new THREE.Mesh(shadowGeo, shadowMat); shadowMesh.position.set(0, 0.01, 0); scene.add(shadowMesh);
+const shadowMesh = new THREE.Mesh(new THREE.CircleGeometry(1.7, 32).rotateX(-Math.PI/2), new THREE.MeshBasicMaterial({ map:makeShadowTexture(), transparent:true, depthWrite:false }));
+shadowMesh.position.set(0, 0.01, 0); scene.add(shadowMesh);
 
 function createClassicFaceTexture() {
-  const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 256;
-  const ctx = canvas.getContext('2d'); ctx.fillStyle = '#f4c752'; ctx.fillRect(0, 0, 256, 256);
-  ctx.fillStyle = '#111111';
+  const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 256; const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#f4c752'; ctx.fillRect(0, 0, 256, 256); ctx.fillStyle = '#111111';
   ctx.beginPath(); ctx.ellipse(85, 100, 11, 18, 0, 0, Math.PI * 2); ctx.fill();
   ctx.beginPath(); ctx.ellipse(171, 100, 11, 18, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = '#111111'; ctx.lineWidth = 9; ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.arc(128, 130, 42, 0.08 * Math.PI, 0.92 * Math.PI, false); ctx.stroke();
+  ctx.strokeStyle = '#111111'; ctx.lineWidth = 9; ctx.lineCap = 'round'; ctx.beginPath(); ctx.arc(128, 130, 42, 0.08 * Math.PI, 0.92 * Math.PI, false); ctx.stroke();
   return new THREE.CanvasTexture(canvas);
 }
 
 const ONE = new THREE.Vector3(1,1,1);
 const partsMap = {};
 
-const torsoGeo = new THREE.BoxGeometry(2,2,1);
-const torsoMat = new THREE.MeshStandardMaterial({ color:0x2f6fcb, roughness:0.65, metalness:0.05 });
-const torsoMesh = new THREE.Mesh(torsoGeo, torsoMat); torsoMesh.matrixAutoUpdate = false; scene.add(torsoMesh);
+// Khởi tạo các part chính của R6
+const torsoMesh = new THREE.Mesh(new THREE.BoxGeometry(2,2,1), new THREE.MeshStandardMaterial({ color:0x2f6fcb, roughness:0.65, metalness:0.05 }));
+torsoMesh.matrixAutoUpdate = false; scene.add(torsoMesh);
 partsMap['Torso'] = { mesh:torsoMesh };
 
+// Khởi tạo các Part đỏ thay thế (Highlight Part Thừa)
+const ghostMat = new THREE.MeshBasicMaterial({ color: 0xff3b3b, transparent: true, opacity: 0.45, wireframe: false });
+const torsoGhost = new THREE.Mesh(new THREE.BoxGeometry(2.06, 2.06, 1.06), ghostMat);
+torsoGhost.matrixAutoUpdate = false; torsoGhost.visible = false; scene.add(torsoGhost);
+partsMap['Torso'].ghostMesh = torsoGhost;
+
 RIG_DEFS.forEach(def=>{
-  const geo = new THREE.BoxGeometry(def.size[0], def.size[1], def.size[2]);
-  let mat;
+  const geo = new THREE.BoxGeometry(def.size[0], def.size[1], def.size[2]); let mat;
   if (def.name === 'Head') {
     const defaultMat = new THREE.MeshStandardMaterial({ color:def.color, roughness:0.55, metalness:0.05 });
-    const faceMat = new THREE.MeshStandardMaterial({ map:createClassicFaceTexture(), roughness:0.55, metalness:0.05 });
-    mat = [defaultMat, defaultMat, defaultMat, defaultMat, defaultMat, faceMat];
-  } else {
-    mat = new THREE.MeshStandardMaterial({ color:def.color, roughness:0.55, metalness:0.05 });
-  }
+    mat = [defaultMat, defaultMat, defaultMat, defaultMat, defaultMat, new THREE.MeshStandardMaterial({ map:createClassicFaceTexture(), roughness:0.55, metalness:0.05 })];
+  } else { mat = new THREE.MeshStandardMaterial({ color:def.color, roughness:0.55, metalness:0.05 }); }
   const mesh = new THREE.Mesh(geo, mat); mesh.matrixAutoUpdate = false; scene.add(mesh);
-  partsMap[def.name] = { mesh, def };
+  
+  // Ghost part cảnh báo dư thừa dữ liệu
+  const gGeo = new THREE.BoxGeometry(def.size[0]+0.06, def.size[1]+0.06, def.size[2]+0.06);
+  const ghostMesh = new THREE.Mesh(gGeo, ghostMat); ghostMesh.matrixAutoUpdate = false; ghostMesh.visible = false; scene.add(ghostMesh);
+
+  partsMap[def.name] = { mesh, def, ghostMesh };
 });
 
-function makeDirLabel(label, color){
-  const size = 128; const c = document.createElement('canvas'); c.width = c.height = size;
-  const ctx = c.getContext('2d'); ctx.beginPath(); ctx.arc(size/2, size/2, size/2-6, 0, Math.PI*2);
-  ctx.fillStyle = color; ctx.fill(); ctx.lineWidth = 6; ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.stroke();
-  ctx.fillStyle = '#0b0d12'; ctx.font = 'bold 60px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText(label, size/2, size/2+4);
-  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map:new THREE.CanvasTexture(c), depthTest:false, depthWrite:false }));
-  sprite.renderOrder = 999; sprite.scale.set(1.1, 1.1, 1); return sprite;
-}
-const dirMarkers = new THREE.Group();
-const DIRS = [{ label:'F', color:'#ff4d4d', x:0, y:0, z:-2.4 }, { label:'B', color:'#4d7aff', x:0, y:0, z:2.4 }, { label:'R', color:'#3ddc84', x:2.4, y:0, z:0 }, { label:'L', color:'#ffcb3d', x:-2.4, y:0, z:0 }];
-DIRS.forEach(d=>{ const sprite = makeDirLabel(d.label, d.color); sprite.position.set(d.x, d.y, d.z); dirMarkers.add(sprite); });
-torsoMesh.add(dirMarkers); 
-
 function composeMatrix(pos, quat){ return new THREE.Matrix4().compose(pos, quat, ONE); }
+
+// Thuật toán kiểm tra Keyframe thừa (Không thay đổi dữ liệu chuyển động)
+function checkIsRedundantFrame(partName, t) {
+  const f = state.framesByPart[partName]; if (!f || f.length <= 1) return false;
+  let idx = 0; for (let i = 0; i < f.length; i++) { if (f[i].t <= t) idx = i; else break; }
+  if (idx === 0) return false;
+  const cur = f[idx], prev = f[idx - 1];
+  return (cur.pos.distanceTo(prev.pos) < 0.005 && cur.quat.angleTo(prev.quat) < 0.005);
+}
 
 function updateRig(t){
   let torsoWorld;
   if (state.framesByPart['Torso']){
-    const s = sampleAt(state.framesByPart['Torso'], t);
-    const poseM = composeMatrix(s.pos, s.quat);
+    const s = sampleAt(state.framesByPart['Torso'], t); const poseM = composeMatrix(s.pos, s.quat);
     torsoWorld = REST_TORSO.clone().multiply(ROOT_C0).multiply(poseM).multiply(ROOT_C1INV);
     if (state.rootLock) {
-      const position = new THREE.Vector3(); const quaternion = new THREE.Quaternion(); const scale = new THREE.Vector3();
-      torsoWorld.decompose(position, quaternion, scale); position.x = 0; position.z = 0; torsoWorld.compose(position, quaternion, scale);
+      const p = new THREE.Vector3(), q = new THREE.Quaternion(), sL = new THREE.Vector3();
+      torsoWorld.decompose(p, q, sL); p.x = 0; p.z = 0; torsoWorld.compose(p, q, sL);
     }
   } else { torsoWorld = REST_TORSO.clone(); }
   torsoMesh.matrix.copy(torsoWorld);
+  
+  if(partsMap['Torso'].ghostMesh) {
+    partsMap['Torso'].ghostMesh.matrix.copy(torsoWorld);
+    partsMap['Torso'].ghostMesh.visible = state.highlightRedundant && checkIsRedundantFrame('Torso', t);
+  }
 
   RIG_DEFS.forEach(def=>{
     const frames = state.framesByPart[def.name]; const s = frames ? sampleAt(frames, t) : null;
     const poseM = s ? composeMatrix(s.pos, s.quat) : new THREE.Matrix4();
     const world = torsoWorld.clone().multiply(def.c0).multiply(poseM).multiply(def.c1inv);
     partsMap[def.name].mesh.matrix.copy(world);
+    
+    if(partsMap[def.name].ghostMesh) {
+      partsMap[def.name].ghostMesh.matrix.copy(world);
+      partsMap[def.name].ghostMesh.visible = state.highlightRedundant && checkIsRedundantFrame(def.name, t);
+    }
   });
   const tp = new THREE.Vector3().setFromMatrixPosition(torsoWorld); shadowMesh.position.set(tp.x, 0.01, tp.z);
 }
 
 /* ---------------------------------------------------------------------
-   4) CAMERA CORE
+   CAMERA SYSTEM
 --------------------------------------------------------------------- */
 const cam = { target: new THREE.Vector3(0,3,0), theta: Math.PI*7/6, phi: 1.25, radius: 9, tTheta: Math.PI*7/6, tPhi: 1.25, tRadius: 9 };
 const MIN_R=3, MAX_R=40, MIN_PHI=0.15, MAX_PHI=Math.PI-0.15;
@@ -486,10 +430,9 @@ function positionCamera(){
   camera.position.set(cam.target.x + cam.radius*Math.sin(cam.phi)*Math.sin(cam.theta), cam.target.y + cam.radius*Math.cos(cam.phi), cam.target.z + cam.radius*Math.sin(cam.phi)*Math.cos(cam.theta));
   camera.lookAt(cam.target);
 }
-
 function panByScreen(dx, dy){
-  const panSpeed = cam.radius * 0.0016; const right = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0); const up = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 1);
-  cam.target.addScaledVector(right, -dx*panSpeed); cam.target.addScaledVector(up, dy*panSpeed);
+  const speed = cam.radius * 0.0016; const right = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0); const up = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 1);
+  cam.target.addScaledVector(right, -dx*speed); cam.target.addScaledVector(up, dy*speed);
 }
 
 const pointers = new Map(); let dragMode = null; let pinchDist = 0, pinchMid = {x:0,y:0};
@@ -497,15 +440,13 @@ canvas.addEventListener('pointerdown', e=>{
   canvas.setPointerCapture(e.pointerId); pointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
   if (pointers.size === 1) dragMode = (e.pointerType==='mouse' && e.shiftKey) ? 'pan' : 'orbit';
   else if (pointers.size === 2){
-    dragMode = 'pinch'; const pts=[...pointers.values()];
-    pinchDist = Math.hypot(pts[0].x-pts[1].x, pts[0].y-pts[1].y); pinchMid = {x:(pts[0].x+pts[1].x)/2, y:(pts[0].y+pts[1].y)/2};
+    dragMode = 'pinch'; const pts=[...pointers.values()]; pinchDist = Math.hypot(pts[0].x-pts[1].x, pts[0].y-pts[1].y); pinchMid = {x:(pts[0].x+pts[1].x)/2, y:(pts[0].y+pts[1].y)/2};
   }
 });
 canvas.addEventListener('pointermove', e=>{
   if (!pointers.has(e.pointerId)) return; const prev = pointers.get(e.pointerId); const cur = {x:e.clientX, y:e.clientY}; pointers.set(e.pointerId, cur);
-  if (dragMode==='orbit' && pointers.size===1){
-    cam.tTheta -= (cur.x-prev.x)*0.0055; cam.tPhi = Math.max(MIN_PHI, Math.min(MAX_PHI, cam.tPhi - (cur.y-prev.y)*0.0055));
-  } else if (dragMode==='pan' && pointers.size===1){ panByScreen(cur.x-prev.x, cur.y-prev.y); }
+  if (dragMode==='orbit' && pointers.size===1){ cam.tTheta -= (cur.x-prev.x)*0.0055; cam.tPhi = Math.max(MIN_PHI, Math.min(MAX_PHI, cam.tPhi - (cur.y-prev.y)*0.0055)); }
+  else if (dragMode==='pan' && pointers.size===1){ panByScreen(cur.x-prev.x, cur.y-prev.y); }
   else if (dragMode==='pinch' && pointers.size===2){
     const pts=[...pointers.values()]; const d = Math.hypot(pts[0].x-pts[1].x, pts[0].y-pts[1].y); const m = {x:(pts[0].x+pts[1].x)/2, y:(pts[0].y+pts[1].y)/2};
     cam.tRadius = Math.max(MIN_R, Math.min(MAX_R, cam.tRadius * (pinchDist/d))); panByScreen(m.x-pinchMid.x, m.y-pinchMid.y); pinchDist = d; pinchMid = m;
@@ -514,16 +455,14 @@ canvas.addEventListener('pointermove', e=>{
 function endPointer(e){ pointers.delete(e.pointerId); if (pointers.size===0) dragMode=null; else if (pointers.size===1) dragMode='orbit'; }
 canvas.addEventListener('pointerup', endPointer); canvas.addEventListener('pointercancel', endPointer);
 canvas.addEventListener('wheel', e=>{ e.preventDefault(); cam.tRadius = Math.max(MIN_R, Math.min(MAX_R, cam.tRadius * (1 + e.deltaY*0.001))); }, {passive:false});
-
-function onResize(){ camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); }
-window.addEventListener('resize', onResize); onResize();
+window.addEventListener('resize', ()=>{ camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
 
 /* ---------------------------------------------------------------------
-   5) STATE & APP CONTROLLERS
+   APPLICATION STATE & CORE LOGIC
 --------------------------------------------------------------------- */
 const state = { 
   framesByPart: {}, originalFramesByPart: null, duration: 0, currentTime: 0, isPlaying: false, 
-  loop: true, speed: 1, rootLock: true, showTimeline: false,
+  loop: true, speed: 1, rootLock: true, showTimeline: false, highlightRedundant: false,
   currentFilename: 'exported_animation.lua', currentFpsMode: 'original'
 };
 const SPEEDS = [0.25, 0.5, 1, 2];
@@ -536,7 +475,10 @@ const els = {
   timelineContainer: document.getElementById('timelineContainer'), fpsSelect: document.getElementById('fpsSelect'), exportBtn: document.getElementById('exportBtn'),
   settingBtn: document.getElementById('settingBtn'), slidingMenu: document.getElementById('slidingMenu'),
   fpsMenuBtn: document.getElementById('fpsMenuBtn'), fpsMenu: document.getElementById('fpsMenu'),
-  tooltip: document.getElementById('customTooltip')
+  tooltip: document.getElementById('customTooltip'), redundantBtn: document.getElementById('redundantBtn'),
+  exportModal: document.getElementById('exportModal'), exportNameInput: document.getElementById('exportNameInput'),
+  partCheckboxContainer: document.getElementById('partCheckboxContainer'),
+  confirmExportBtn: document.getElementById('confirmExportBtn'), cancelExportBtn: document.getElementById('cancelExportBtn')
 };
 
 function buildTimelineGUI(result) {
@@ -548,15 +490,14 @@ function buildTimelineGUI(result) {
   allTracks.forEach(name => {
     if (!result.byPart[name]) return;
     html += `<div class="timeline-row"><div class="track-name">${name}</div><div class="track-keyframes">`;
-    result.byPart[name].forEach(kf => { html += `<div class="kf-diamond" style="left: ${(kf.t / state.duration) * 100}%;" title="Mốc: ${kf.t.toFixed(2)}s"></div>`; });
+    result.byPart[name].forEach(kf => { html += `<div class="kf-diamond" style="left: ${(kf.t / state.duration) * 100}%;"></div>`; });
     html += `</div></div>`;
   });
   html += `</div>`; els.timelineContainer.innerHTML = html;
 }
 
 function updateTimelinePlayhead() {
-  const playhead = document.getElementById('timelinePlayhead');
-  if (playhead && state.duration > 0) playhead.style.left = (state.currentTime / state.duration) * 100 + '%';
+  const p = document.getElementById('timelinePlayhead'); if (p && state.duration > 0) p.style.left = (state.currentTime / state.duration) * 100 + '%';
 }
 
 function showToast(msg, isErr){
@@ -577,35 +518,49 @@ function resampleAnimation(targetFps) {
   for (const partName in state.originalFramesByPart) {
     const origFrames = state.originalFramesByPart[partName]; if (!origFrames || origFrames.length === 0) continue;
     newByPart[partName] = []; let t = 0;
-    while (t < state.duration) {
-      const sampled = sampleAt(origFrames, t);
-      newByPart[partName].push({ t, pos: sampled.pos.clone(), quat: sampled.quat.clone() }); t += dt;
-    }
-    const sampledEnd = sampleAt(origFrames, state.duration);
-    if (newByPart[partName].length > 0 && Math.abs(newByPart[partName][newByPart[partName].length - 1].t - state.duration) < 1e-4) {
-      newByPart[partName][newByPart[partName].length - 1] = { t: state.duration, pos: sampledEnd.pos.clone(), quat: sampledEnd.quat.clone() };
-    } else { newByPart[partName].push({ t: state.duration, pos: sampledEnd.pos.clone(), quat: sampledEnd.quat.clone() }); }
+    while (t < state.duration) { newByPart[partName].push({ t, ...sampleAt(origFrames, t) }); t += dt; }
+    newByPart[partName].push({ t: state.duration, ...sampleAt(origFrames, state.duration) });
   }
   state.framesByPart = newByPart; buildTimelineGUI({ byPart: state.framesByPart });
-  showToast(`Đã nén hệ thống hoạt ảnh về dạng: ${targetFps} FPS`);
+  showToast(`Đã lấy mẫu nén về: ${targetFps} FPS`);
 }
 
 function applyFpsSetting(mode) {
   if (mode === 'original') {
     const newByPart = {};
-    for (const part in state.originalFramesByPart) { newByPart[part] = state.originalFramesByPart[part].map(kf => ({ t: kf.t, pos: kf.pos.clone(), quat: kf.quat.clone() })); }
+    for (const part in state.originalFramesByPart) { newByPart[part] = state.originalFramesByPart[part].map(kf => ({ ...kf })); }
     state.framesByPart = newByPart; state.currentFpsMode = 'original'; buildTimelineGUI({ byPart: state.framesByPart });
-    showToast("Đã đưa dữ liệu về cấu trúc mốc thời gian gốc.");
-  } else {
-    const fps = parseInt(mode); if (!isNaN(fps) && fps > 0) { resampleAnimation(fps); state.currentFpsMode = mode; }
-  }
+    showToast("Đã khôi phục dữ liệu mốc thời gian FPS gốc.");
+  } else { const fps = parseInt(mode); if (!isNaN(fps) && fps > 0) { resampleAnimation(fps); state.currentFpsMode = mode; } }
 }
 
-function exportKFS() {
-  if (!state.framesByPart || Object.keys(state.framesByPart).length === 0) { showToast("Không tìm thấy dữ liệu để trích xuất!", true); return; }
-  let output = `-- Exported from KFS Viewer (Target Custom FPS: ${state.currentFpsMode})\n`; const allLines = [];
-  for (const partName in state.framesByPart) {
-    const frames = state.framesByPart[partName];
+// Mở giao diện cấu hình Export nâng cao
+function openExportModal() {
+  if (!state.framesByPart || Object.keys(state.framesByPart).length === 0) { showToast("Không có dữ liệu trích xuất!", true); return; }
+  els.exportNameInput.value = state.currentFilename.replace(/\.[^/.]+$/, "") + "_optimized.lua";
+  
+  let checkboxHtml = '';
+  KNOWN_PART_NAMES.forEach(name => {
+    if (state.framesByPart[name]) {
+      checkboxHtml += `<label class="part-item"><input type="checkbox" name="exportParts" value="${name}" checked> ${name}</label>`;
+    }
+  });
+  els.partCheckboxContainer.innerHTML = checkboxHtml;
+  els.exportModal.style.display = 'flex';
+}
+
+function executeExport() {
+  const targetFilename = els.exportNameInput.value.trim() || 'animation.lua';
+  const checkedBoxes = document.querySelectorAll('input[name="exportParts"]:checked');
+  const activeParts = Array.from(checkedBoxes).map(cb => cb.value);
+
+  if (activeParts.length === 0) { alert("Vui lòng chọn ít nhất một Part để trích xuất dữ liệu!"); return; }
+
+  let output = `-- Cấu trúc hoạt ảnh xuất từ KFS Studio v2\n-- FPS Mode: ${state.currentFpsMode}\n`;
+  const allLines = [];
+
+  activeParts.forEach(partName => {
+    const frames = state.framesByPart[partName]; if (!frames) return;
     frames.forEach(kf => {
       const pos = kf.pos; const euler = new THREE.Euler().setFromQuaternion(kf.quat, 'XYZ');
       const tStr = kf.t === 0 ? "0" : kf.t.toFixed(4).replace(/\.?0+$/, '');
@@ -613,44 +568,41 @@ function exportKFS() {
       const angStr = `${euler.x.toFixed(4).replace(/\.?0+$/, '')}, ${euler.y.toFixed(4).replace(/\.?0+$/, '')}, ${euler.z.toFixed(4).replace(/\.?0+$/, '')}`;
       allLines.push({ t: kf.t, text: `${tStr}s : ${partName} = CFrame.new(${posStr}) * CFrame.Angles(${angStr})` });
     });
-  }
+  });
+
   allLines.sort((a, b) => { if (Math.abs(a.t - b.t) < 1e-5) return a.text.localeCompare(b.text); return a.t - b.t; });
   output += allLines.map(l => l.text).join("\n");
 
   const blob = new Blob([output], { type: 'text/plain;charset=utf-8' }); const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url; a.download = state.currentFilename.replace(/\.[^/.]+$/, "") + "_fps.lua";
+  const a = document.createElement('a'); a.href = url; a.download = targetFilename;
   document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
-  showToast("Xuất bản và trích xuất file .lua hoàn tất!");
+  
+  els.exportModal.style.display = 'none';
+  showToast("Trích xuất tùy chọn Part hoàn tất!");
 }
 
 function applyImport(text, filename){
-  const result = parseKeyframeSequence(text); if (result.parsedCount === 0){ showToast('Không đọc được định dạng dữ liệu CFrame!', true); return; }
-  
+  const result = parseKeyframeSequence(text); if (result.parsedCount === 0){ showToast('Lỗi đọc dữ liệu cấu trúc CFrame!', true); return; }
   state.originalFramesByPart = result.byPart; state.duration = result.duration; state.currentTime = 0; state.isPlaying = true;
-  state.currentFilename = filename; state.currentFpsMode = 'original';
+  state.currentFilename = filename; state.currentFpsMode = 'original'; els.fpsSelect.value = 'original';
 
-  els.fpsSelect.value = 'original';
-  const customActiveOpt = els.fpsSelect.querySelector('option[value="custom_active"]'); if(customActiveOpt) customActiveOpt.remove();
-
+  const cOpt = els.fpsSelect.querySelector('option[value="custom_active"]'); if(cOpt) cOpt.remove();
   els.filename.textContent = filename; els.hint.style.display = 'none';
-  els.scrub.disabled = false; els.playBtn.disabled = false;
-  els.fpsMenuBtn.disabled = false; // Mở khóa menu FPS
+  els.scrub.disabled = false; els.playBtn.disabled = false; els.fpsMenuBtn.disabled = false;
 
   applyFpsSetting('original'); updatePlayButton(); updateScrubUI();
-  showToast('Nạp dữ liệu hoạt ảnh KFS thành công!');
 }
 
 function clearAnimation(){
   state.framesByPart = {}; state.originalFramesByPart = null; state.duration = 0; state.currentTime = 0; state.isPlaying = false;
-  els.filename.textContent = 'Chưa nhập file'; els.hint.style.display = ''; els.scrub.disabled = true; els.playBtn.disabled = true;
-  els.fpsMenuBtn.disabled = true;
-  els.fpsMenu.classList.remove('open'); els.slidingMenu.classList.remove('open');
-  els.settingBtn.classList.remove('toggled'); els.fpsMenuBtn.classList.remove('toggled');
+  els.filename.textContent = 'Chưa nhập file'; els.hint.style.display = ''; els.scrub.disabled = true; els.playBtn.disabled = true; els.fpsMenuBtn.disabled = true;
+  els.fpsMenu.classList.remove('open'); els.slidingMenu.classList.remove('open'); els.settingBtn.classList.remove('toggled'); els.fpsMenuBtn.classList.remove('toggled');
   updatePlayButton(); updateScrubUI(); buildTimelineGUI(null);
+  KNOWN_PART_NAMES.forEach(n => { if(partsMap[n] && partsMap[n].ghostMesh) partsMap[n].ghostMesh.visible = false; });
 }
 
 /* ---------------------------------------------------------------------
-   6) UI POPUP EVENTS & TOOLTIP SYSTEM
+   UI INTERFACES & TOOLTIP FLYING LEFT
 --------------------------------------------------------------------- */
 function initTooltipSystem(){
   document.querySelectorAll('[data-title]').forEach(btn => {
@@ -658,28 +610,24 @@ function initTooltipSystem(){
     const display = () => {
       const txt = btn.getAttribute('data-title'); if (!txt) return;
       els.tooltip.textContent = txt; const bound = btn.getBoundingClientRect();
-      els.tooltip.style.left = (bound.left + bound.width / 2) + 'px'; els.tooltip.style.top = bound.top + 'px';
+      els.tooltip.style.left = bound.left + 'px'; els.tooltip.style.top = (bound.top + bound.height / 2) + 'px';
       els.tooltip.classList.add('show');
     };
     const dismiss = () => { clearTimeout(holdTimer); els.tooltip.classList.remove('show'); };
-
     btn.addEventListener('mouseenter', display); btn.addEventListener('mouseleave', dismiss);
-    btn.addEventListener('pointerdown', () => { holdTimer = setTimeout(display, 250); });
+    btn.addEventListener('pointerdown', () => { holdTimer = setTimeout(display, 200); });
     btn.addEventListener('pointerup', dismiss); btn.addEventListener('pointerleave', dismiss); btn.addEventListener('click', dismiss);
   });
 }
 
 // Xử lý đóng/mở xen kẽ các menu chui dọc
 els.settingBtn.addEventListener('click', () => {
-  const isOpen = els.slidingMenu.classList.toggle('open');
-  els.settingBtn.classList.toggle('toggled', isOpen);
+  const isOpen = els.slidingMenu.classList.toggle('open'); els.settingBtn.classList.toggle('toggled', isOpen);
   if (isOpen) { els.fpsMenu.classList.remove('open'); els.fpsMenuBtn.classList.remove('toggled'); }
 });
-
 els.fpsMenuBtn.addEventListener('click', () => {
   if (els.fpsMenuBtn.disabled) return;
-  const isOpen = els.fpsMenu.classList.toggle('open');
-  els.fpsMenuBtn.classList.toggle('toggled', isOpen);
+  const isOpen = els.fpsMenu.classList.toggle('open'); els.fpsMenuBtn.classList.toggle('toggled', isOpen);
   if (isOpen) { els.slidingMenu.classList.remove('open'); els.settingBtn.classList.remove('toggled'); }
 });
 
@@ -687,8 +635,7 @@ const fileInput = document.getElementById('fileInput');
 document.getElementById('importBtn').addEventListener('click', ()=>fileInput.click());
 fileInput.addEventListener('change', ()=>{
   const f = fileInput.files[0]; if (!f) return;
-  const reader = new FileReader(); reader.onload = ()=>applyImport(reader.result, f.name);
-  reader.readAsText(f); fileInput.value = '';
+  const reader = new FileReader(); reader.onload = ()=>applyImport(reader.result, f.name); reader.readAsText(f); fileInput.value = '';
 });
 
 window.addEventListener('dragover', e=>{ e.preventDefault(); els.dropOverlay.classList.add('show'); });
@@ -696,46 +643,54 @@ window.addEventListener('dragleave', ()=>els.dropOverlay.classList.remove('show'
 window.addEventListener('drop', e=>{
   e.preventDefault(); els.dropOverlay.classList.remove('show');
   const f = e.dataTransfer.files && e.dataTransfer.files[0]; if (!f) return;
-  const reader = new FileReader(); reader.onload = ()=>applyImport(reader.result, f.name);
-  reader.readAsText(f);
+  const reader = new FileReader(); reader.onload = ()=>applyImport(reader.result, f.name); reader.readAsText(f);
 });
 
 els.fpsSelect.addEventListener('change', (e) => {
   const val = e.target.value;
   if (val === 'custom') {
-    const customVal = prompt("Nhập số khung hình FPS mong muốn (1 - 120):", "24"); const parsed = parseInt(customVal);
+    const customVal = prompt("Nhập số khung hình FPS thiết lập (1 - 120):", "24"); const parsed = parseInt(customVal);
     if (!isNaN(parsed) && parsed > 0 && parsed <= 120) {
-      let customOpt = els.fpsSelect.querySelector('option[value="custom_active"]');
-      if (!customOpt) {
-        customOpt = document.createElement('option'); customOpt.value = 'custom_active';
-        els.fpsSelect.insertBefore(customOpt, els.fpsSelect.lastElementChild);
-      }
-      customOpt.textContent = `Tùy chỉnh (${parsed} FPS)`; els.fpsSelect.value = 'custom_active';
-      resampleAnimation(parsed); state.currentFpsMode = parsed;
+      let cOpt = els.fpsSelect.querySelector('option[value="custom_active"]');
+      if (!cOpt) { cOpt = document.createElement('option'); cOpt.value = 'custom_active'; els.fpsSelect.insertBefore(cOpt, els.fpsSelect.lastElementChild); }
+      cOpt.textContent = `Tùy chỉnh (${parsed} FPS)`; els.fpsSelect.value = 'custom_active'; resampleAnimation(parsed); state.currentFpsMode = parsed;
     } else { showToast("Số FPS không khả thi!", true); els.fpsSelect.value = state.currentFpsMode; }
-  } else {
-    const customOpt = els.fpsSelect.querySelector('option[value="custom_active"]'); if (customOpt) customOpt.remove();
-    applyFpsSetting(val);
-  }
+  } else { const cOpt = els.fpsSelect.querySelector('option[value="custom_active"]'); if (cOpt) cOpt.remove(); applyFpsSetting(val); }
 });
 
-els.exportBtn.addEventListener('click', exportKFS);
+// THAY ĐỔI CỐT LÕI: Sửa việc tua Timeline cập nhật ngay lập tức khi Pause hoạt ảnh
+els.scrub.addEventListener('input', ()=>{
+  state.currentTime = parseFloat(els.scrub.value) * state.duration;
+  updateTimelinePlayhead();
+  updateScrubUI();
+  updateRig(state.currentTime); // Ép buộc đồ họa render lại tư thế mới ngay lập tức
+});
+
+// Điều khiển nút Highlight Part dư thừa
+els.redundantBtn.addEventListener('click', (e)=>{
+  state.highlightRedundant = !state.highlightRedundant;
+  e.currentTarget.classList.toggle('toggled', state.highlightRedundant);
+  updateRig(state.currentTime);
+  showToast(state.highlightRedundant ? "Đã bật chế độ hiển thị Part để thế chỗ Keyframe thừa" : "Đã tắt chế độ Highlight");
+});
+
+els.exportBtn.addEventListener('click', openExportModal);
+els.confirmExportBtn.addEventListener('click', executeExport);
+els.cancelExportBtn.addEventListener('click', () => els.exportModal.style.display = 'none');
+
 els.playBtn.addEventListener('click', ()=>{ if (state.duration<=0) return; if (!state.isPlaying && state.currentTime>=state.duration) state.currentTime=0; state.isPlaying = !state.isPlaying; updatePlayButton(); });
 els.loopBtn.addEventListener('click', ()=>{ state.loop = !state.loop; els.loopBtn.classList.toggle('toggled', state.loop); });
 els.speedBtn.addEventListener('click', ()=>{ state.speed = SPEEDS[(SPEEDS.indexOf(state.speed)+1)%SPEEDS.length]; els.speedBtn.textContent = state.speed+'×'; });
-els.scrub.addEventListener('input', ()=>{ state.currentTime = parseFloat(els.scrub.value) * state.duration; updateTimelinePlayhead(); });
-
 document.getElementById('resetCamBtn').addEventListener('click', ()=>{ cam.tTheta = DEFAULT_CAM.theta; cam.tPhi = DEFAULT_CAM.phi; cam.tRadius = DEFAULT_CAM.radius; cam.target.copy(DEFAULT_CAM.target); });
 document.getElementById('timelineToggleBtn').addEventListener('click', e=>{ state.showTimeline = !state.showTimeline; e.currentTarget.classList.toggle('toggled', state.showTimeline); if (state.duration > 0) els.timelineContainer.style.display = state.showTimeline ? 'block' : 'none'; });
 document.getElementById('rootLockBtn').addEventListener('click', e=>{ state.rootLock = !state.rootLock; e.currentTarget.classList.toggle('toggled', state.rootLock); });
 document.getElementById('clearBtn').addEventListener('click', clearAnimation);
-document.getElementById('dirBtn').addEventListener('click', e=>{ dirMarkers.visible = !dirMarkers.visible; e.currentTarget.classList.toggle('toggled', dirMarkers.visible); });
 document.getElementById('infoBtn').addEventListener('click', ()=>els.infoPanel.classList.add('open'));
 document.getElementById('closeInfoBtn').addEventListener('click', ()=>els.infoPanel.classList.remove('open'));
 window.addEventListener('keydown', e=>{ if (e.code==='Space' && state.duration>0){ e.preventDefault(); els.playBtn.click(); } });
 
 /* ---------------------------------------------------------------------
-   7) ANIMATION ENGINE LOOP
+   RENDER LOOP ENGINE
 --------------------------------------------------------------------- */
 const clock = new THREE.Clock();
 function animate(){
