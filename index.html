@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>KFS Studio Viewer — Proxy Parts & Hierarchy</title>
+<title>KFS Studio Viewer — Core Upgrade (Dynamic Mode)</title>
 <style>
   :root{
     --bg:#0b0d12;
@@ -14,7 +14,6 @@
     --accent:#4fa8ff;
     --danger:#ff5c5c;
     --warn:#ff9f43;
-    --proxy:#00ffcc;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   html,body{margin:0; height:100%; background:var(--bg); overflow:hidden;
@@ -45,7 +44,7 @@
   .timeline-row { display: flex; align-items: center; border-bottom: 1px solid #1a1e29; height: 24px; }
   .timeline-row:last-child { border-bottom: none; }
   .track-name {
-    width: 100px; font-size: 11px; color: var(--text-dim); padding-left: 8px; font-weight: 600;
+    width: 90px; font-size: 11px; color: var(--text-dim); padding-left: 8px; font-weight: 600;
     border-right: 1px solid var(--panel-border); white-space: nowrap; overflow: hidden;
     text-overflow: ellipsis; background: #121620; height: 100%; display: flex; align-items: center;
   }
@@ -126,7 +125,7 @@
   .modal-input:focus { border-color: var(--accent); }
   .part-selector-grid {
     display: grid; grid-template-columns: 1fr 1fr; gap: 6px; background: #090b0f;
-    padding: 10px; border-radius: 8px; border: 1px solid var(--panel-border); max-height: 150px; overflow-y: auto;
+    padding: 10px; border-radius: 8px; border: 1px solid var(--panel-border); max-height: 120px; overflow-y: auto;
   }
   .part-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text); cursor: pointer; }
   .part-item input { accent-color: var(--accent); cursor: pointer; }
@@ -181,7 +180,7 @@
       <input type="text" id="exportNameInput" class="modal-input" placeholder="animation_backup.lua">
     </div>
     <div class="modal-field">
-      <label>Chọn các Part/Phụ kiện muốn giữ lại khi Export:</label>
+      <label>Chọn các Part (kể cả Part phụ) muốn giữ lại:</label>
       <div id="partCheckboxContainer" class="part-selector-grid"></div>
     </div>
     <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:4px;">
@@ -228,9 +227,9 @@
           <option value="15">15 FPS</option>
           <option value="custom">Tùy chỉnh...</option>
         </select>
-        <button class="btn primary" id="exportBtn" style="width:140px; justify-content:center;" data-title="Cấu hình xuất Part & Lưu file">📥 Export .lua</button>
+        <button class="btn primary" id="exportBtn" style="width:140px; justify-content:center;" data-title="Cấu hình tùy chọn & Xuất .lua">📥 Export .lua</button>
       </div>
-      <button class="btn icon" id="fpsMenuBtn" disabled data-title="Tối ưu hóa & Nén FPS">♻️</button>
+      <button class="btn icon" id="fpsMenuBtn" disabled data-title="Tối ưu hóa & Đổi FPS">♻️</button>
     </div>
 
     <div class="menu-group">
@@ -238,7 +237,7 @@
         <button class="btn icon" id="resetCamBtn" data-title="Đặt lại góc quay camera">⟲</button>
         <button class="btn icon" id="timelineToggleBtn" data-title="Bật/Tắt Timeline kfs">🎬</button>
         <button class="btn icon toggled" id="rootLockBtn" data-title="Khóa/Mở gốc Root Part">🔒</button>
-        <button class="btn icon toggled" id="dummyPartsBtn" data-title="Hiển thị/Ẩn khối thế chỗ Part Vũ khí (Hammer, Tool...)">🧱</button>
+        <button class="btn icon" id="redundantBtn" data-title="Hiện/Ẩn Part phụ & Highlight dư thừa">🧱</button>
         <button class="btn icon" id="clearBtn" data-title="Xóa sạch dữ liệu hoạt ảnh">🗑</button>
       </div>
       <button class="btn icon" id="settingBtn" data-title="Cài đặt hệ thống tiện ích">⚙️</button>
@@ -278,38 +277,17 @@ const RIG_DEFS = [
 ];
 const KNOWN_PART_NAMES = ['Torso','Head','Right Arm','Left Arm','Right Leg','Left Leg'];
 
-// Hàm chuẩn hóa tên bị gạch dưới từ Roblox xuất ra (Ví dụ: Left_Leg -> Left Leg)
-function normalizeName(name) {
-  const map = { 'Left_Leg':'Left Leg', 'Right_Leg':'Right Leg', 'Left_Arm':'Left Arm', 'Right_Arm':'Right Arm' };
-  return map[name] || name;
-}
-
-/* ---------------------------------------------------------------------
-   2) PARSER SYSTEM (Hỗ trợ cấu trúc xương & Part ngoài)
---------------------------------------------------------------------- */
 const LINE_RE = /^([\d.eE+\-]+)s\s*:\s*([^=]+?)\s*=\s*CFrame\.new\(([^)]*)\)\s*\*\s*CFrame\.Angles\(([^)]*)\)/;
 
 function parseKeyframeSequence(text){
-  const byPart = {}; 
-  const hierarchy = {}; // Lưu trữ cấu trúc cha con
-  let parsedCount = 0, totalNonEmpty = 0;
+  const byPart = {}; let parsedCount = 0, totalNonEmpty = 0;
   const lines = text.split(/\r?\n/);
-
   for (let raw of lines){
-    const line = raw.trim(); if (!line) continue; totalNonEmpty++;
-    
-    // Đọc thông tin Header để lấy cấu trúc nối Part (Ví dụ: -- H:Hammer=Handle)
-    const hMatch = line.match(/^--\s*H:([^=]+)=(.+)$/);
-    if (hMatch) {
-      hierarchy[normalizeName(hMatch[1].trim())] = normalizeName(hMatch[2].trim());
-      continue;
-    }
-
-    if (line.startsWith('--')) continue;
-
+    const line = raw.trim(); if (!line || line.startsWith('--')) continue; totalNonEmpty++;
     const m = line.match(LINE_RE); if (!m) continue;
-    const t = parseFloat(m[1]);
-    const name = normalizeName(m[2].trim());
+    const t = parseFloat(m[1]); 
+    const name = m[2].trim().replace(/_/g, ' '); // FIX: Tự sửa lỗi tên chứa dấu _
+    
     const pos = m[3].split(',').map(s=>parseFloat(s.trim()));
     const ang = m[4].split(',').map(s=>parseFloat(s.trim()));
     if (isNaN(t) || pos.length<3 || ang.length<3 || pos.some(isNaN) || ang.some(isNaN)) continue;
@@ -321,11 +299,10 @@ function parseKeyframeSequence(text){
     if (!byPart[name]) byPart[name] = [];
     byPart[name].push({ t, pos:vpos, quat }); parsedCount++;
   }
-  
   for (const k in byPart) byPart[k].sort((a,b)=>a.t-b.t);
   let duration = 0;
   for (const k in byPart){ const arr = byPart[k]; if (arr.length) duration = Math.max(duration, arr[arr.length-1].t); }
-  return { byPart, hierarchy, duration, parsedCount, totalNonEmpty };
+  return { byPart, duration, parsedCount, totalNonEmpty };
 }
 
 function sampleAt(frames, t){
@@ -373,14 +350,19 @@ function createClassicFaceTexture() {
 }
 
 const ONE = new THREE.Vector3(1,1,1);
-const partsMap = {}; // Lưu trữ toàn bộ object meshes
+const partsMap = {};
 
-// Khởi tạo R6 Torso gốc
+// Khởi tạo các part chính của R6
 const torsoMesh = new THREE.Mesh(new THREE.BoxGeometry(2,2,1), new THREE.MeshStandardMaterial({ color:0x2f6fcb, roughness:0.65, metalness:0.05 }));
 torsoMesh.matrixAutoUpdate = false; scene.add(torsoMesh);
-partsMap['Torso'] = { mesh:torsoMesh };
+partsMap['Torso'] = { mesh:torsoMesh, isDynamic: false };
 
-// Khởi tạo các chi khác của R6
+// Khởi tạo các Part đỏ thay thế (Highlight Part Thừa)
+const ghostMat = new THREE.MeshBasicMaterial({ color: 0xff3b3b, transparent: true, opacity: 0.45, wireframe: false });
+const torsoGhost = new THREE.Mesh(new THREE.BoxGeometry(2.06, 2.06, 1.06), ghostMat);
+torsoGhost.matrixAutoUpdate = false; torsoGhost.visible = false; scene.add(torsoGhost);
+partsMap['Torso'].ghostMesh = torsoGhost;
+
 RIG_DEFS.forEach(def=>{
   const geo = new THREE.BoxGeometry(def.size[0], def.size[1], def.size[2]); let mat;
   if (def.name === 'Head') {
@@ -388,16 +370,25 @@ RIG_DEFS.forEach(def=>{
     mat = [defaultMat, defaultMat, defaultMat, defaultMat, defaultMat, new THREE.MeshStandardMaterial({ map:createClassicFaceTexture(), roughness:0.55, metalness:0.05 })];
   } else { mat = new THREE.MeshStandardMaterial({ color:def.color, roughness:0.55, metalness:0.05 }); }
   const mesh = new THREE.Mesh(geo, mat); mesh.matrixAutoUpdate = false; scene.add(mesh);
-  partsMap[def.name] = { mesh, def };
+  
+  // Ghost part cảnh báo dư thừa dữ liệu
+  const gGeo = new THREE.BoxGeometry(def.size[0]+0.06, def.size[1]+0.06, def.size[2]+0.06);
+  const ghostMesh = new THREE.Mesh(gGeo, ghostMat); ghostMesh.matrixAutoUpdate = false; ghostMesh.visible = false; scene.add(ghostMesh);
+
+  partsMap[def.name] = { mesh, def, ghostMesh, isDynamic: false };
 });
 
 function composeMatrix(pos, quat){ return new THREE.Matrix4().compose(pos, quat, ONE); }
 
-// Hàm cập nhật ma trận thế giới (World Matrix) cho toàn bộ Rig và Proxy
-function updateRig(t){
-  const worldMatrices = {};
+function checkIsRedundantFrame(partName, t) {
+  const f = state.framesByPart[partName]; if (!f || f.length <= 1) return false;
+  let idx = 0; for (let i = 0; i < f.length; i++) { if (f[i].t <= t) idx = i; else break; }
+  if (idx === 0) return false;
+  const cur = f[idx], prev = f[idx - 1];
+  return (cur.pos.distanceTo(prev.pos) < 0.005 && cur.quat.angleTo(prev.quat) < 0.005);
+}
 
-  // 1. Tính toán Torso trước tiên
+function updateRig(t){
   let torsoWorld;
   if (state.framesByPart['Torso']){
     const s = sampleAt(state.framesByPart['Torso'], t); const poseM = composeMatrix(s.pos, s.quat);
@@ -408,39 +399,36 @@ function updateRig(t){
     }
   } else { torsoWorld = REST_TORSO.clone(); }
   torsoMesh.matrix.copy(torsoWorld);
-  worldMatrices['Torso'] = torsoWorld;
+  
+  if(partsMap['Torso'].ghostMesh) {
+    partsMap['Torso'].ghostMesh.matrix.copy(torsoWorld);
+    partsMap['Torso'].ghostMesh.visible = state.highlightRedundant && checkIsRedundantFrame('Torso', t);
+  }
 
-  // 2. Tính toán các chi khớp R6 gốc
+  // 1. CẬP NHẬT RIG R6 CHUẨN
   RIG_DEFS.forEach(def=>{
     const frames = state.framesByPart[def.name]; const s = frames ? sampleAt(frames, t) : null;
     const poseM = s ? composeMatrix(s.pos, s.quat) : new THREE.Matrix4();
     const world = torsoWorld.clone().multiply(def.c0).multiply(poseM).multiply(def.c1inv);
     partsMap[def.name].mesh.matrix.copy(world);
-    worldMatrices[def.name] = world;
+    
+    if(partsMap[def.name].ghostMesh) {
+      partsMap[def.name].ghostMesh.matrix.copy(world);
+      partsMap[def.name].ghostMesh.visible = state.highlightRedundant && checkIsRedundantFrame(def.name, t);
+    }
   });
 
-  // 3. Tính toán đệ quy các công cụ/Proxy Parts ngoài (Hammer, Handle,...)
-  function getWorld(part) {
-    if (worldMatrices[part]) return worldMatrices[part];
-    // Liên kết với part cha thông qua hierarchy parser, mặc định là gắn vào Torso nếu bị sót header
-    const parentName = state.hierarchy[part] || 'Torso';
-    const parentWorld = getWorld(parentName) || torsoWorld;
-
-    const frames = state.framesByPart[part];
-    const s = frames ? sampleAt(frames, t) : null;
-    const poseM = s ? composeMatrix(s.pos, s.quat) : new THREE.Matrix4();
-    
-    const world = parentWorld.clone().multiply(poseM);
-    worldMatrices[part] = world;
-    return world;
-  }
-
-  // Cập nhật tọa độ hiển thị cho từng Proxy
-  state.customParts.forEach(p => {
-    const w = getWorld(p);
-    if (partsMap[p] && partsMap[p].mesh) {
-      partsMap[p].mesh.matrix.copy(w);
-      partsMap[p].mesh.visible = state.showDummyParts; // Phụ thuộc vào nút 🧱
+  // 2. CẬP NHẬT RIG CHO PART PHỤ (DYNAMIC PART NHƯ HAMMER, HANDLE...)
+  Object.keys(partsMap).forEach(partName => {
+    if (partsMap[partName].isDynamic) {
+      const frames = state.framesByPart[partName];
+      const s = frames ? sampleAt(frames, t) : null;
+      if (s) {
+        const poseM = composeMatrix(s.pos, s.quat);
+        // Vũ khí thường dính liền tương đối với Torso
+        const world = torsoWorld.clone().multiply(poseM);
+        partsMap[partName].mesh.matrix.copy(world);
+      }
     }
   });
 
@@ -491,9 +479,9 @@ window.addEventListener('resize', ()=>{ camera.aspect = innerWidth/innerHeight; 
 --------------------------------------------------------------------- */
 const state = { 
   framesByPart: {}, originalFramesByPart: null, duration: 0, currentTime: 0, isPlaying: false, 
-  loop: true, speed: 1, rootLock: true, showTimeline: false, showDummyParts: true,
-  currentFilename: 'exported_animation.lua', currentFpsMode: 'original',
-  hierarchy: {}, customParts: [] // Lưu trữ part ngoài body
+  loop: true, speed: 1, rootLock: true, showTimeline: false, 
+  highlightRedundant: false, showExtras: false, // Thêm state kiểm soát hiển thị
+  currentFilename: 'exported_animation.lua', currentFpsMode: 'original'
 };
 const SPEEDS = [0.25, 0.5, 1, 2];
 
@@ -505,7 +493,7 @@ const els = {
   timelineContainer: document.getElementById('timelineContainer'), fpsSelect: document.getElementById('fpsSelect'), exportBtn: document.getElementById('exportBtn'),
   settingBtn: document.getElementById('settingBtn'), slidingMenu: document.getElementById('slidingMenu'),
   fpsMenuBtn: document.getElementById('fpsMenuBtn'), fpsMenu: document.getElementById('fpsMenu'),
-  tooltip: document.getElementById('customTooltip'), dummyPartsBtn: document.getElementById('dummyPartsBtn'),
+  tooltip: document.getElementById('customTooltip'), redundantBtn: document.getElementById('redundantBtn'),
   exportModal: document.getElementById('exportModal'), exportNameInput: document.getElementById('exportNameInput'),
   partCheckboxContainer: document.getElementById('partCheckboxContainer'),
   confirmExportBtn: document.getElementById('confirmExportBtn'), cancelExportBtn: document.getElementById('cancelExportBtn')
@@ -515,9 +503,8 @@ function buildTimelineGUI(result) {
   if (!result || state.duration <= 0) { els.timelineContainer.style.display = 'none'; els.timelineContainer.innerHTML = ''; return; }
   els.timelineContainer.style.display = state.showTimeline ? 'block' : 'none';
 
-  let html = `<div style="position: relative; width:100%;"><div style="position: absolute; inset: 0; display: flex; pointer-events: none; z-index: 10;"><div style="width: 100px; flex-shrink: 0;"></div><div style="flex: 1; position: relative; height: 100%;"><div id="timelinePlayhead" style="position: absolute; top: 0; bottom: 0; width: 2px; background: var(--danger); left: 0%;"></div></div></div>`;
-  // Liệt kê R6 Parts trước, sau đó tới vũ khí custom (Proxy parts)
-  const allTracks = ['Torso', ...KNOWN_PART_NAMES.filter(n => n !== 'Torso'), ...state.customParts];
+  let html = `<div style="position: relative; width:100%;"><div style="position: absolute; inset: 0; display: flex; pointer-events: none; z-index: 10;"><div style="width: 90px; flex-shrink: 0;"></div><div style="flex: 1; position: relative; height: 100%;"><div id="timelinePlayhead" style="position: absolute; top: 0; bottom: 0; width: 2px; background: var(--danger); left: 0%;"></div></div></div>`;
+  const allTracks = ['Torso', ...Object.keys(result.byPart).filter(n => n !== 'Torso')];
   allTracks.forEach(name => {
     if (!result.byPart[name]) return;
     html += `<div class="timeline-row"><div class="track-name">${name}</div><div class="track-keyframes">`;
@@ -561,22 +548,18 @@ function applyFpsSetting(mode) {
     const newByPart = {};
     for (const part in state.originalFramesByPart) { newByPart[part] = state.originalFramesByPart[part].map(kf => ({ ...kf })); }
     state.framesByPart = newByPart; state.currentFpsMode = 'original'; buildTimelineGUI({ byPart: state.framesByPart });
-    showToast("Đã khôi phục dữ liệu cấu trúc FPS gốc.");
+    showToast("Đã khôi phục dữ liệu mốc thời gian FPS gốc.");
   } else { const fps = parseInt(mode); if (!isNaN(fps) && fps > 0) { resampleAnimation(fps); state.currentFpsMode = mode; } }
 }
 
-// Bảng tùy chọn Export
 function openExportModal() {
   if (!state.framesByPart || Object.keys(state.framesByPart).length === 0) { showToast("Không có dữ liệu trích xuất!", true); return; }
   els.exportNameInput.value = state.currentFilename.replace(/\.[^/.]+$/, "") + "_optimized.lua";
   
   let checkboxHtml = '';
-  // Tổng hợp tất cả part có xuất hiện trong khung hình để người dùng được phép chọn bỏ bớt
-  const allAvailableParts = [...KNOWN_PART_NAMES, ...state.customParts];
-  allAvailableParts.forEach(name => {
-    if (state.framesByPart[name]) {
-      checkboxHtml += `<label class="part-item"><input type="checkbox" name="exportParts" value="${name}" checked> ${name}</label>`;
-    }
+  // THAY ĐỔI: Nhận diện cả Part phụ để cho phép Export
+  Object.keys(state.framesByPart).forEach(name => {
+    checkboxHtml += `<label class="part-item"><input type="checkbox" name="exportParts" value="${name}" checked> ${name}</label>`;
   });
   els.partCheckboxContainer.innerHTML = checkboxHtml;
   els.exportModal.style.display = 'flex';
@@ -589,25 +572,17 @@ function executeExport() {
 
   if (activeParts.length === 0) { alert("Vui lòng chọn ít nhất một Part để trích xuất dữ liệu!"); return; }
 
-  let output = `-- Cấu trúc hoạt ảnh xuất từ KFS Studio\n-- FPS Mode: ${state.currentFpsMode}\n`;
+  let output = `-- Cấu trúc hoạt ảnh xuất từ KFS Studio v2\n-- FPS Mode: ${state.currentFpsMode}\n`;
   const allLines = [];
-
-  // Ghi lại Header cho các vũ khí được check (Chỉ ghi nếu cả Cha lẫn Con cùng tồn tại trong cấu trúc xuất)
-  for(const child in state.hierarchy) {
-    if(activeParts.includes(child)) {
-      output += `-- H:${child.replace(/ /g, '_')}=${state.hierarchy[child].replace(/ /g, '_')}\n`;
-    }
-  }
 
   activeParts.forEach(partName => {
     const frames = state.framesByPart[partName]; if (!frames) return;
-    const writeName = partName.replace(/ /g, '_'); // Phục hồi format Left_Leg cho tương thích lua Roblox
     frames.forEach(kf => {
       const pos = kf.pos; const euler = new THREE.Euler().setFromQuaternion(kf.quat, 'XYZ');
       const tStr = kf.t === 0 ? "0" : kf.t.toFixed(4).replace(/\.?0+$/, '');
       const posStr = `${pos.x.toFixed(4).replace(/\.?0+$/, '')}, ${pos.y.toFixed(4).replace(/\.?0+$/, '')}, ${pos.z.toFixed(4).replace(/\.?0+$/, '')}`;
       const angStr = `${euler.x.toFixed(4).replace(/\.?0+$/, '')}, ${euler.y.toFixed(4).replace(/\.?0+$/, '')}, ${euler.z.toFixed(4).replace(/\.?0+$/, '')}`;
-      allLines.push({ t: kf.t, text: `${tStr}s : ${writeName} = CFrame.new(${posStr}) * CFrame.Angles(${angStr})` });
+      allLines.push({ t: kf.t, text: `${tStr}s : ${partName} = CFrame.new(${posStr}) * CFrame.Angles(${angStr})` });
     });
   });
 
@@ -619,35 +594,27 @@ function executeExport() {
   document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
   
   els.exportModal.style.display = 'none';
-  showToast("Trích xuất tùy chọn Part thành công!");
+  showToast("Trích xuất tùy chọn Part hoàn tất!");
 }
 
 function applyImport(text, filename){
   const result = parseKeyframeSequence(text); if (result.parsedCount === 0){ showToast('Lỗi đọc dữ liệu cấu trúc CFrame!', true); return; }
   
-  state.originalFramesByPart = result.byPart; 
-  state.hierarchy = result.hierarchy;
-  state.duration = result.duration; state.currentTime = 0; state.isPlaying = true;
-  state.currentFilename = filename; state.currentFpsMode = 'original'; els.fpsSelect.value = 'original';
-  
-  // Xác định các bộ phận phụ (Vũ khí/Công cụ)
-  state.customParts = Object.keys(result.byPart).filter(p => !KNOWN_PART_NAMES.includes(p));
-
-  // Tẩy xóa các proxy part từ lần import trước khỏi Scene
-  Object.keys(partsMap).forEach(key => {
-    if (!KNOWN_PART_NAMES.includes(key) && key !== 'Torso') {
-      scene.remove(partsMap[key].mesh); delete partsMap[key];
+  // TÍNH NĂNG TẠO DYNAMIC PART TỰ ĐỘNG
+  Object.keys(result.byPart).forEach(partName => {
+    if (!partsMap[partName]) {
+      const geo = new THREE.BoxGeometry(0.35, 0.35, 0.35);
+      const mat = new THREE.MeshStandardMaterial({ color: 0xff5c5c, roughness:0.5, metalness:0.2 });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.matrixAutoUpdate = false;
+      mesh.visible = state.showExtras; // Ẩn hiện dựa theo nút 🧱
+      scene.add(mesh);
+      partsMap[partName] = { mesh: mesh, isDynamic: true };
     }
   });
 
-  // Render các khối Proxy hình hộp chữ nhật thế chỗ cho vũ khí phát hiện được (Ví dụ: Hammer, Handle)
-  const proxyGeo = new THREE.BoxGeometry(0.6, 0.6, 0.6);
-  const proxyMat = new THREE.MeshStandardMaterial({ color: 0x00ffcc, transparent: true, opacity: 0.8, emissive: 0x005544 });
-  state.customParts.forEach(p => {
-    const mesh = new THREE.Mesh(proxyGeo, proxyMat);
-    mesh.matrixAutoUpdate = false; mesh.visible = state.showDummyParts;
-    scene.add(mesh); partsMap[p] = { mesh, isCustom: true };
-  });
+  state.originalFramesByPart = result.byPart; state.duration = result.duration; state.currentTime = 0; state.isPlaying = true;
+  state.currentFilename = filename; state.currentFpsMode = 'original'; els.fpsSelect.value = 'original';
 
   const cOpt = els.fpsSelect.querySelector('option[value="custom_active"]'); if(cOpt) cOpt.remove();
   els.filename.textContent = filename; els.hint.style.display = 'none';
@@ -658,17 +625,21 @@ function applyImport(text, filename){
 
 function clearAnimation(){
   state.framesByPart = {}; state.originalFramesByPart = null; state.duration = 0; state.currentTime = 0; state.isPlaying = false;
+  
+  // DỌN SẠCH CÁC PART PHỤ KHỎI MÀN HÌNH
+  Object.keys(partsMap).forEach(name => {
+    if (partsMap[name].isDynamic) {
+      scene.remove(partsMap[name].mesh);
+      partsMap[name].mesh.geometry.dispose();
+      partsMap[name].mesh.material.dispose();
+      delete partsMap[name];
+    }
+  });
+
   els.filename.textContent = 'Chưa nhập file'; els.hint.style.display = ''; els.scrub.disabled = true; els.playBtn.disabled = true; els.fpsMenuBtn.disabled = true;
   els.fpsMenu.classList.remove('open'); els.slidingMenu.classList.remove('open'); els.settingBtn.classList.remove('toggled'); els.fpsMenuBtn.classList.remove('toggled');
-  
-  // Xóa sách proxy khỏi cảnh
-  Object.keys(partsMap).forEach(key => {
-    if (!KNOWN_PART_NAMES.includes(key) && key !== 'Torso') { scene.remove(partsMap[key].mesh); delete partsMap[key]; }
-  });
-  state.customParts = []; state.hierarchy = {};
-
   updatePlayButton(); updateScrubUI(); buildTimelineGUI(null);
-  updateRig(0);
+  KNOWN_PART_NAMES.forEach(n => { if(partsMap[n] && partsMap[n].ghostMesh) partsMap[n].ghostMesh.visible = false; });
 }
 
 /* ---------------------------------------------------------------------
@@ -680,8 +651,7 @@ function initTooltipSystem(){
     const display = () => {
       const txt = btn.getAttribute('data-title'); if (!txt) return;
       els.tooltip.textContent = txt; const bound = btn.getBoundingClientRect();
-      els.tooltip.style.left = bound.left + 'px'; 
-      els.tooltip.style.top = (bound.top + bound.height / 2) + 'px';
+      els.tooltip.style.left = bound.left + 'px'; els.tooltip.style.top = (bound.top + bound.height / 2) + 'px';
       els.tooltip.classList.add('show');
     };
     const dismiss = () => { clearTimeout(holdTimer); els.tooltip.classList.remove('show'); };
@@ -691,7 +661,6 @@ function initTooltipSystem(){
   });
 }
 
-// Xử lý đóng/mở xen kẽ các menu chui dọc
 els.settingBtn.addEventListener('click', () => {
   const isOpen = els.slidingMenu.classList.toggle('open'); els.settingBtn.classList.toggle('toggled', isOpen);
   if (isOpen) { els.fpsMenu.classList.remove('open'); els.fpsMenuBtn.classList.remove('toggled'); }
@@ -729,20 +698,26 @@ els.fpsSelect.addEventListener('change', (e) => {
   } else { const cOpt = els.fpsSelect.querySelector('option[value="custom_active"]'); if (cOpt) cOpt.remove(); applyFpsSetting(val); }
 });
 
-// Sửa lỗi đứng hình khi Pause: Ép Rig render lại thời gian thực
 els.scrub.addEventListener('input', ()=>{
   state.currentTime = parseFloat(els.scrub.value) * state.duration;
-  updateTimelinePlayhead();
-  updateScrubUI();
-  updateRig(state.currentTime); 
+  updateTimelinePlayhead(); updateScrubUI(); updateRig(state.currentTime);
 });
 
-// Điều khiển nút Proxy Part (Vũ khí)
-els.dummyPartsBtn.addEventListener('click', (e)=>{
-  state.showDummyParts = !state.showDummyParts;
-  e.currentTarget.classList.toggle('toggled', state.showDummyParts);
-  state.customParts.forEach(p => { if (partsMap[p]) partsMap[p].mesh.visible = state.showDummyParts; });
-  showToast(state.showDummyParts ? "Đã bật hiển thị khối đại diện Vũ khí/Tool" : "Đã ẩn khối đại diện Tool");
+// NÚT 🧱 CẢI TIẾN: Vừa đánh dấu khung thừa, vừa SHOW CÁC PART PHỤ
+els.redundantBtn.addEventListener('click', (e)=>{
+  state.highlightRedundant = !state.highlightRedundant;
+  state.showExtras = state.highlightRedundant; 
+  e.currentTarget.classList.toggle('toggled', state.highlightRedundant);
+  
+  // Tự động bật tắt hiển thị Part phụ (Vũ khí, Tool...)
+  Object.keys(partsMap).forEach(name => {
+    if (partsMap[name].isDynamic) {
+      partsMap[name].mesh.visible = state.showExtras;
+    }
+  });
+
+  updateRig(state.currentTime);
+  showToast(state.highlightRedundant ? "Đã bật: Tự động hiển thị Part phụ & Cảnh báo khung thừa" : "Đã tắt hiển thị Part phụ");
 });
 
 els.exportBtn.addEventListener('click', openExportModal);
@@ -773,9 +748,8 @@ function animate(){
       else { state.currentTime = state.duration; state.isPlaying = false; updatePlayButton(); }
     }
     updateScrubUI();
-    updateRig(state.currentTime); // Cập nhật chuyển động trong Animation
   }
-  renderer.render(scene, camera);
+  updateRig(state.currentTime); renderer.render(scene, camera);
 }
 
 cam.tTheta = DEFAULT_CAM.theta; cam.tPhi = DEFAULT_CAM.phi; cam.tRadius = DEFAULT_CAM.radius; cam.target.copy(DEFAULT_CAM.target);
